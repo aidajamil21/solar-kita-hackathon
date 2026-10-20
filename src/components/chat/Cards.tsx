@@ -47,9 +47,9 @@ export function PortfolioCard({ d }: { d: PortfolioSummary }) {
     <Shell icon={CircleDollarSign} title="Portfolio summary" meta={d}>
       <div className="grid-2" style={{ gap: 6 }}>
         <Metric label="Contributed" value={rm(d.totalContributed)} />
-        <Metric label="Payouts received" value={rm(d.totalPayoutsReceived, 2)} tone="green" />
-        <Metric label="Outstanding" value={rm(d.outstandingPayouts, 2)} />
-        <Metric label="Next payout (est.)" value={d.nextPayout ? rm(d.nextPayout.estimatedAmount, 2) : '—'} />
+        <Metric label="Credited to you" value={rm(d.totalPayoutsReceived, 2)} tone="green" />
+        <Metric label="Credits on the way" value={rm(d.outstandingPayouts, 2)} />
+        <Metric label="Next credit (est.)" value={d.nextPayout ? rm(d.nextPayout.estimatedAmount, 2) : '—'} />
       </div>
       <div className="list" style={{ marginTop: 6 }}>
         {d.holdings.map((h) => (
@@ -72,12 +72,12 @@ export function PortfolioCard({ d }: { d: PortfolioSummary }) {
 /* ---------- calculate_realized_return ---------- */
 export function RealizedCard({ d }: { d: RealizedReturn }) {
   return (
-    <Shell icon={HandCoins} title="Realized return" meta={d}>
+    <Shell icon={HandCoins} title="Returns received so far" meta={d}>
       <div className="grid-2" style={{ gap: 6 }}>
-        <Metric label="Contributions" value={rm(d.contributions)} />
-        <Metric label="Payouts received" value={rm(d.payouts, 2)} tone="green" />
+        <Metric label="Your contributions" value={rm(d.contributions)} />
+        <Metric label="Credited to you" value={rm(d.payouts, 2)} tone="green" />
         <Metric label="Fees" value={rm(d.fees, 2)} />
-        <Metric label="Realized (annualised)" value={`${d.realizedReturnPct.toFixed(1)}% (${d.annualisedPct.toFixed(1)}%/yr)`} />
+        <Metric label="Earned back so far" value={`${d.realizedReturnPct.toFixed(1)}% (≈${d.annualisedPct.toFixed(1)}% a year)`} />
       </div>
     </Shell>
   )
@@ -176,8 +176,8 @@ export function ImpactCard({ d }: { d: EnvironmentalImpact }) {
 /* ---------- alerts (shared with the notifications sheet) ---------- */
 export const ALERT_META: Record<AlertType, { icon: LucideIcon; label: string }> = {
   contribution_recorded: { icon: BadgeCheck, label: 'Contribution' },
-  payout_completed: { icon: HandCoins, label: 'Payout' },
-  payout_overdue: { icon: CalendarClock, label: 'Payout overdue' },
+  payout_completed: { icon: HandCoins, label: 'Credit applied' },
+  payout_overdue: { icon: CalendarClock, label: 'Credit delayed' },
   low_generation: { icon: AlertTriangle, label: 'Generation' },
   project_outage: { icon: PowerOff, label: 'Outage' },
   funding_milestone: { icon: Flag, label: 'Funding' },
@@ -227,7 +227,7 @@ export function AttachmentView({ a }: { a: Attachment }) {
 /* ---------- tool trace: which approved tools the answer used ---------- */
 const TOOL_LABEL: Record<ToolName, string> = {
   get_portfolio_summary: 'Portfolio summary',
-  calculate_realized_return: 'Realized return',
+  calculate_realized_return: 'Returns received',
   calculate_projected_scenarios: 'Projected scenarios',
   get_project_performance: 'Project performance',
   get_environmental_impact: 'Environmental impact',

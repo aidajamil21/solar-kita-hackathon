@@ -136,7 +136,7 @@ export default function SolarDetail() {
         <div className="card pad row" style={{ gap: 12 }}>
           <span className="ic gold"><CalendarDays size={18} /></span>
           <div className="grow">
-            <div className="muted small" style={{ fontWeight: 600 }}>Next payout</div>
+            <div className="muted small" style={{ fontWeight: 600 }}>Next Energy Savings Credit</div>
             <div style={{ fontWeight: 800 }}>{payout.toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
           </div>
           <button className="pill-link" onClick={() => setDoc('schedule')}>Schedule <ChevronRight size={12} /></button>
@@ -169,8 +169,8 @@ export default function SolarDetail() {
       <Rise className="section">
         <div className="card" style={{ padding: '2px 16px' }}>
           {[
-            { id: 'tx' as Doc, icon: Receipt, title: 'Transaction history', desc: 'View your investments, rewards and payouts' },
-            { id: 'schedule' as Doc, icon: CalendarDays, title: 'Payout schedule', desc: 'See upcoming and past distributions' },
+            { id: 'tx' as Doc, icon: Receipt, title: 'Transaction history', desc: 'View your contributions, rewards and credits' },
+            { id: 'schedule' as Doc, icon: CalendarDays, title: 'Credit schedule', desc: 'See upcoming and past Energy Savings Credits' },
             { id: 'docs' as Doc, icon: FileText, title: 'Project documents', desc: 'Reports, agreements and key information' },
           ].map((r) => (
             <button key={r.title} className="list-row" onClick={() => setDoc(r.id)}>
@@ -214,7 +214,7 @@ export default function SolarDetail() {
               {history.slice(-6).reverse().map((h) => (
                 <div key={h.idx} className="list-row">
                   <span className="ic green sm"><ArrowDownLeft size={16} /></span>
-                  <div className="grow"><div className="title">Payout</div><div className="desc">28 {MONTHS[h.month]} {h.year}</div></div>
+                  <div className="grow"><div className="title">Energy Savings Credit</div><div className="desc">28 {MONTHS[h.month]} {h.year} · TNB bill</div></div>
                   <b className="num">+{rm(h.amount, 2)}</b>
                 </div>
               ))}
@@ -228,8 +228,8 @@ export default function SolarDetail() {
         )}
         {doc === 'schedule' && (
           <>
-            <h2 className="h2" style={{ fontSize: 19 }}>Payout schedule</h2>
-            <p className="sub" style={{ marginTop: 4 }}>Payouts are distributed on the 28th of every month, based on projected energy savings.</p>
+            <h2 className="h2" style={{ fontSize: 19 }}>Credit schedule</h2>
+            <p className="sub" style={{ marginTop: 4 }}>Energy Savings Credits are applied to your TNB bill on the 28th of every month, based on projected energy savings.</p>
             <div className="list" style={{ marginTop: 6 }}>
               {Array.from({ length: 6 }, (_, k) => {
                 const d = new Date(payout.getFullYear(), payout.getMonth() + k, 28)

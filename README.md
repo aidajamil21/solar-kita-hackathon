@@ -1,6 +1,6 @@
 # Solar Kita ☀️
 
-Mobile-first web app for **community solar in Sime Darby Property townships**. Residents explore a 3D map of their township, subscribe to specific solar panels, earn reward points and track payouts and impact. An AI "Solar Analyst" chat explains their portfolio.
+Mobile-first web app for **community solar in Sime Darby Property townships**. Residents explore a 3D map of their township, subscribe to specific solar panels, earn reward points and receive Energy Savings Credits on their electricity bill. An AI "Solar Analyst" chat explains their portfolio.
 
 > Hackathon prototype. The frontend is complete and runs on local demo data. **The backend is not built yet** (see [Backend integration](#backend-integration)).
 

@@ -50,7 +50,7 @@ export default function Solar() {
             <div><span className="ic sm gold"><Coins size={15} /></span><div><div className="k">Total entry amount</div><div className="v">{rm(invested)}</div></div></div>
             <div><span className="ic sm gold"><Star size={15} /></span><div><div className="k">Points earned</div><div className="v">+{points.toLocaleString()}</div></div></div>
             <div><span className="ic sm gold"><Leaf size={15} /></span><div><div className="k">Carbon savings</div><div className="v">~{co2.toFixed(1)} t <small>/ yr</small></div></div></div>
-            <div><span className="ic sm gold"><CalendarDays size={15} /></span><div><div className="k">Next payout</div><div className="v">{payout.toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</div></div></div>
+            <div><span className="ic sm gold"><CalendarDays size={15} /></span><div><div className="k">Next credit</div><div className="v">{payout.toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</div></div></div>
           </div>
         </div>
       </Rise>
@@ -108,15 +108,15 @@ export default function Solar() {
       </Rise>
 
       <Rise className="section">
-        <div className="section-head"><h2 className="h2">Recent payouts</h2></div>
+        <div className="section-head"><h2 className="h2">Recent energy savings credits</h2></div>
         <div className="card" style={{ padding: '2px 16px' }}>
           <div className="list">
             {payouts.slice(-4).reverse().map((p) => (
               <div key={p.idx} className="list-row">
                 <span className="ic green sm"><ArrowDownLeft size={16} /></span>
                 <div className="grow">
-                  <div className="title">Payout</div>
-                  <div className="desc">28 {MONTHS[p.month]} {p.year} · Maybank ••4821</div>
+                  <div className="title">Energy Savings Credit</div>
+                  <div className="desc">28 {MONTHS[p.month]} {p.year} · TNB bill ••4821</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div className="num" style={{ fontWeight: 800 }}>+{rm(p.amount, 2)}</div>

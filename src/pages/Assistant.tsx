@@ -191,7 +191,7 @@ function Welcome({ onPick }: { onPick: (q: string) => void }) {
       <div className="col" style={{ alignItems: 'center', textAlign: 'center' }}>
         <Avatar size={64} />
         <h1 className="h1" style={{ fontSize: 22, marginTop: 14 }}>Hi Jane, I’m your <em>Solar Analyst</em></h1>
-        <p className="sub" style={{ fontSize: 13, marginTop: 6, maxWidth: 300 }}>Ask me about your portfolio, payouts, project performance or environmental impact.</p>
+        <p className="sub" style={{ fontSize: 13, marginTop: 6, maxWidth: 300 }}>Ask me about your portfolio, Energy Savings Credits, project performance or environmental impact.</p>
       </div>
       <div className="card" style={{ padding: 14, marginTop: 18, display: 'grid', gap: 10 }}>
         <Point icon={<BadgeCheck size={14} />}>I only use <b>verified data</b> from Solar Kita, and I’ll tell you when something is missing or out of date.</Point>

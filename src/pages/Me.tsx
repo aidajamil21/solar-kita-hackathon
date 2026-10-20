@@ -172,14 +172,14 @@ export default function Me() {
             <div className="grow"><div className="title">Home township</div><div className="desc">{township.name}, {township.area}</div></div>
             <ChevronRight size={16} className="muted" />
           </button>
-          <button className="list-row" onClick={() => store.toast('Payout account: Maybank ••4821')}>
+          <button className="list-row" onClick={() => store.toast('Credits are applied to TNB account ••4821')}>
             <span className="ic sm blue"><Landmark size={16} /></span>
-            <div className="grow"><div className="title">Payout account</div><div className="desc">Maybank ••4821</div></div>
+            <div className="grow"><div className="title">Credit account</div><div className="desc">TNB electricity account ••4821</div></div>
             <ChevronRight size={16} className="muted" />
           </button>
           <div className="list-row">
             <span className="ic sm rose"><Bell size={16} /></span>
-            <div className="grow"><div className="title">Payout & reward alerts</div><div className="desc">{notif ? 'Enabled' : 'Disabled'}</div></div>
+            <div className="grow"><div className="title">Credit & reward alerts</div><div className="desc">{notif ? 'Enabled' : 'Disabled'}</div></div>
             <button role="switch" aria-checked={notif} aria-label="Toggle alerts" onClick={() => setNotif((n) => !n)}
               style={{ width: 46, height: 28, borderRadius: 14, background: notif ? 'var(--brand)' : '#D8D7D2', position: 'relative', transition: 'background .3s' }}>
               <motion.span layout transition={{ type: 'spring', damping: 22, stiffness: 420 }} style={{ position: 'absolute', top: 3, left: notif ? 21 : 3, width: 22, height: 22, borderRadius: 11, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />

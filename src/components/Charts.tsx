@@ -35,7 +35,7 @@ export function AreaChart(props: { data: Point[]; height?: number; format: (v: n
 function Empty({ height }: { height: number }) {
   return (
     <div style={{ height, display: 'grid', placeItems: 'center', borderRadius: 16, background: '#faf6ee', color: 'var(--muted)', fontSize: 12.5, textAlign: 'center', padding: 16 }}>
-      ☀️ Your first payout will appear here after the 28th
+      ☀️ Your first Energy Savings Credit will appear here after the 28th
     </div>
   )
 }
