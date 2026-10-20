@@ -4,7 +4,7 @@ Mobile-first web app for **community solar in Sime Darby Property townships**. R
 
 > Hackathon prototype. The frontend is complete and runs on local demo data. **The backend is not built yet** (see [Backend integration](#backend-integration)).
 
-**Live demo:** https://cutebluetiger.github.io/solar-kita-hackathon/
+**Live demo:** https://aidajamil21.github.io/solar-kita-hackathon/
 
 ## Quick start
 
@@ -76,7 +76,7 @@ Every data response carries `DataMeta` (`basis: 'verified' | 'forecast'`, `asOf`
 - `src/components/AlertsButton.tsx` → load alerts from `get_active_alerts`; call a mark-read endpoint.
 - Put the API base URL in `.env.local` as `VITE_API_URL=` (see `.env.example`) and read it with `import.meta.env.VITE_API_URL`.
 
-**CORS:** the deployed frontend runs on `https://cutebluetiger.github.io`, so the backend must allow that origin (and `http://localhost:5173` for development).
+**CORS:** the deployed frontend runs on `https://aidajamil21.github.io`, so the backend must allow that origin (and `http://localhost:5173` for development).
 
 **Suggested open-source pieces** (from the design notes): OpenEMS for energy/inverter data, Novu for notifications.
 
@@ -87,7 +87,7 @@ Every push to `main` builds and deploys to **GitHub Pages** through `.github/wor
 To embed the app in another website:
 
 ```html
-<iframe src="https://cutebluetiger.github.io/solar-kita-hackathon/" width="400" height="860" style="border:0;border-radius:24px"></iframe>
+<iframe src="https://aidajamil21.github.io/solar-kita-hackathon/" width="400" height="860" style="border:0;border-radius:24px"></iframe>
 ```
 
 ## Map data
