@@ -1,13 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, BarChart3, Check, ChevronDown, Coins, Compass, CreditCard, Landmark, LayoutGrid, Leaf, MapPin, Minus, Moon, Plus, Search, Star, Sun, Users, Wallet, X, Zap } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Compass, CreditCard, Landmark, LayoutGrid, Leaf, MapPin, Minus, Moon, Plus, Search, Star, Sun, Users, Wallet, X, Zap } from 'lucide-react'
 import { createElement, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ProjectArt, TownPhoto } from '../components/Art'
 import type { UnitState } from '../components/map/Sites'
 import type { MapApi } from '../components/map/TownshipMap'
 import { Coin, Progress, Sheet, SuccessMark } from '../components/ui'
+import { ProjectFacts } from '../components/ProjectFacts'
 import { KINDS, rm, SITES, siteById, STATES, TOWNSHIPS, townshipById, type Site, type SiteKind } from '../data'
-import { rateOf, useStore } from '../store'
+import { useStore } from '../store'
 
 const TownshipMap = lazy(() => import('../components/map/TownshipMap'))
 
@@ -267,7 +268,6 @@ function SiteSheet(props: {
   const mine = store.mineFor(site).size
   const n = selection.length
   const total = n * site.pricePerUnit
-  const monthly = (total * rateOf(site)) / 12
   const gridRef = useRef<HTMLDivElement>(null)
 
   return (
@@ -311,12 +311,7 @@ function SiteSheet(props: {
           <span className="small muted">Since {site.since}</span>
         </div>
 
-        <div className="kv" style={{ marginTop: 12 }}>
-          <div><span className="ic sm"><Coins size={15} /></span><div><div className="k">Entry cost</div><div className="v">{rm(site.pricePerUnit)} <small>/ unit</small></div></div></div>
-          <div><span className="ic sm"><BarChart3 size={15} /></span><div><div className="k">Expected return</div><div className="v">{site.returnLow}–{site.returnHigh}% <small>p.a.</small></div></div></div>
-          <div><span className="ic sm"><Star size={15} /></span><div><div className="k">Reward points</div><div className="v">+{site.pointsPerUnit} <small>/ unit</small></div></div></div>
-          <div><span className="ic sm green"><Leaf size={15} /></span><div><div className="k">Carbon savings</div><div className="v">{site.co2PerUnit} t <small>/ yr</small></div></div></div>
-        </div>
+        <div style={{ marginTop: 12 }}><ProjectFacts site={site} layout="grid" /></div>
 
         <div className="section" style={{ marginTop: 22, scrollMarginTop: 8 }} ref={gridRef}>
           <div className="row between" style={{ marginBottom: 4 }}>
@@ -367,7 +362,7 @@ function SiteSheet(props: {
           {n > 0 ? (
             <motion.div key="sum" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="row between" style={{ marginBottom: 10, fontSize: 12.5 }}>
               <span><b>{n}</b> × {rm(site.pricePerUnit)}</span>
-              <span className="muted">Est. ROF <b style={{ color: 'var(--ink)' }}>{rm(monthly, 2)}</b>/mo</span>
+              <span className="muted">Est. return <b style={{ color: 'var(--ink)' }}>{site.returnLow}–{site.returnHigh}%</b> p.a.</span>
               <span className="row" style={{ gap: 4 }}><Coin size={14} /><b>+{n * site.pointsPerUnit}</b></span>
             </motion.div>
           ) : (
@@ -451,7 +446,6 @@ function ConfirmSheet({ open, site, units, onClose, onDone }: { open: boolean; s
   useEffect(() => { if (open) setPhase('review') }, [open])
 
   const total = units.length * site.pricePerUnit
-  const monthly = (total * rateOf(site)) / 12
   const pay = () => {
     setPhase('paying')
     setTimeout(() => {
@@ -472,11 +466,11 @@ function ConfirmSheet({ open, site, units, onClose, onDone }: { open: boolean; s
           <SuccessMark />
           <h2 className="h1" style={{ fontSize: 24, marginTop: 20 }}>Subscription confirmed</h2>
           <p className="sub" style={{ marginTop: 6 }}>
-            You now own {units.length} {meta.unitName}{units.length > 1 ? 's' : ''} at <b>{site.name}</b>. They’re highlighted in green on the map, and your first ROF payout arrives on the 28th.
+            You now own {units.length} {meta.unitName}{units.length > 1 ? 's' : ''} at <b>{site.name}</b>. They’re highlighted in green on the map.
           </p>
           <div className="kv" style={{ marginTop: 18, textAlign: 'left' }}>
             <div><span className="ic sm"><Star size={15} /></span><div><div className="k">Points earned</div><div className="v">+{earned}</div></div></div>
-            <div><span className="ic sm green"><BarChart3 size={15} /></span><div><div className="k">Est. monthly ROF</div><div className="v">{rm(monthly, 2)}</div></div></div>
+            <div><span className="ic sm green"><Leaf size={15} /></span><div><div className="k">Carbon savings</div><div className="v">{(units.length * site.co2PerUnit).toFixed(1)} t / yr</div></div></div>
           </div>
           <div className="col" style={{ gap: 10, marginTop: 20 }}>
             <button className="btn primary block" onClick={() => onDone(true)}>View my project <ArrowRight size={17} /></button>
@@ -498,9 +492,8 @@ function ConfirmSheet({ open, site, units, onClose, onDone }: { open: boolean; s
               {[
                 ['Subscription amount', rm(total)],
                 ['Expected return', `${site.returnLow}–${site.returnHigh}% p.a.`],
-                ['Est. monthly ROF', rm(monthly, 2)],
                 ['Reward points', `+${units.length * site.pointsPerUnit}`],
-                ['Carbon avoided', `${(units.length * site.co2PerUnit).toFixed(1)} tCO₂e / yr`],
+                ['Carbon savings', `~${(units.length * site.co2PerUnit).toFixed(1)} tCO₂e / yr`],
               ].map(([k, v]) => (
                 <div key={k} className="row between" style={{ fontSize: 13, padding: '6px 0' }}>
                   <span className="muted">{k}</span><b>{v}</b>

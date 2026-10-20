@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, BarChart3, Check, ChevronRight, Coins, Leaf, Map, Star } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, Leaf, Map, Star } from 'lucide-react'
 import { createElement, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProjectArt, TownPhoto } from '../components/Art'
 import { Count, Hero, Page, Progress, Rise } from '../components/ui'
-import { KINDS, levelFor, rm, SITES, TOWNSHIPS, townshipById } from '../data'
+import { KINDS, levelFor, SITES, TOWNSHIPS, townshipById } from '../data'
+import { InitiativeStrip, ProjectFacts } from '../components/ProjectFacts'
 import { useStore } from '../store'
 import { asset } from '../asset'
 
@@ -80,28 +81,28 @@ export default function Home() {
                 <ChevronRight size={18} className="muted" />
               </button>
               <p className="sub" style={{ fontSize: 13, marginTop: 12 }}>{meta.blurb}</p>
-              <div className="kv" style={{ marginTop: 12 }}>
-                <div><span className="ic sm"><Coins size={15} /></span><div><div className="k">Entry cost from</div><div className="v">{rm(featured.pricePerUnit)}</div></div></div>
-                <div><span className="ic sm"><BarChart3 size={15} /></span><div><div className="k">Expected return</div><div className="v">{featured.returnLow}–{featured.returnHigh}% <small>p.a.</small></div></div></div>
-                <div><span className="ic sm"><Star size={15} /></span><div><div className="k">Reward points</div><div className="v">+{featured.pointsPerUnit} <small>/ unit</small></div></div></div>
-                <div><span className="ic sm green"><Leaf size={15} /></span><div><div className="k">Carbon savings</div><div className="v">~{featured.co2PerUnit} t <small>/ yr</small></div></div></div>
-              </div>
+              <div style={{ marginTop: 6 }}><ProjectFacts site={featured} /></div>
             </motion.div>
           </AnimatePresence>
-          {sites.length > 1 && (
-            <div className="chips" style={{ margin: '14px -18px 0', padding: '0 18px' }}>
-              {sites.map((s) => (
-                <button key={s.id} className={`chip${s.id === featured.id ? ' active' : ''}`} style={{ height: 32, fontSize: 11.5 }} onClick={() => setFeaturedId(s.id)}>
-                  {createElement(KINDS[s.kind].icon, { size: 13 })} {KINDS[s.kind].short}
-                </button>
-              ))}
-            </div>
-          )}
-          <button className="btn primary block" style={{ marginTop: 14 }} onClick={() => nav(`/explore?site=${featured.id}`)}>
-            Participate <ArrowRight size={17} />
-          </button>
+          <div className="grid-2" style={{ marginTop: 12 }}>
+            <button className="btn ghost" onClick={() => nav(`/explore?site=${featured.id}`)}>View details</button>
+            <button className="btn primary" onClick={() => nav(`/explore?site=${featured.id}`)}>Participate <ArrowRight size={17} /></button>
+          </div>
         </div>
       </Rise>
+
+      {/* ---- every initiative in this township ---- */}
+      {sites.length > 1 && (
+        <Rise className="section">
+          <div className="section-head">
+            <div>
+              <h2 className="h2">Earn points across every initiative</h2>
+              <div className="muted small" style={{ marginTop: 2 }}>The more you contribute, the more you’re rewarded.</div>
+            </div>
+          </div>
+          <InitiativeStrip sites={sites} activeId={featured.id} onPick={(s) => setFeaturedId(s.id)} />
+        </Rise>
+      )}
 
       {/* ---- points ---- */}
       <Rise className="section" style={{ marginTop: 14 }}>

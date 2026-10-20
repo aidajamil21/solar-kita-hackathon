@@ -43,7 +43,7 @@ const SEED: State = {
   lifetime: 1250,
   township: 'elmina',
   subs: [
-    { siteId: 'elmina-subscription', units: [2, 3], since: '2024-01' },
+    { siteId: 'elmina-subscription', units: [3], since: '2024-01' },
     { siteId: 'elmina-rooftop', units: [0], since: '2024-03' },
   ],
   redemptions: [
@@ -58,7 +58,7 @@ const SEED: State = {
   checkins: [],
 }
 
-const KEY = 'solar-kita-v2'
+const KEY = 'solar-kita-v3'
 
 function load(): State {
   try {
@@ -68,13 +68,13 @@ function load(): State {
   return SEED
 }
 
-/* ---------- ROF maths ---------- */
+/* ---------- payout maths (returns are based on projected energy savings) ---------- */
 
-export const rateOf = (s: Site) => (s.returnLow + s.returnHigh) / 200
+export const expectedRate = (s: Site) => (s.returnLow + s.returnHigh) / 200
 export const investedOf = (sub: Sub) => sub.units.length * (siteById(sub.siteId)?.pricePerUnit ?? 0)
-export const monthlyRof = (sub: Sub) => {
+export const monthlyPayout = (sub: Sub) => {
   const site = siteById(sub.siteId)!
-  return (investedOf(sub) * rateOf(site)) / 12
+  return (investedOf(sub) * expectedRate(site)) / 12
 }
 
 function monthIndex(ym: string) {
@@ -86,11 +86,11 @@ const thisMonth = () => {
   return d.getFullYear() * 12 + d.getMonth()
 }
 
-/** ROF paid per month (oldest first) from start until last month */
-export function rofHistory(sub: Sub) {
+/** payouts per month (oldest first) from start until last month */
+export function payoutHistory(sub: Sub) {
   const start = monthIndex(sub.since)
   const end = thisMonth()
-  const base = monthlyRof(sub)
+  const base = monthlyPayout(sub)
   const out: { idx: number; month: number; year: number; amount: number }[] = []
   for (let i = start; i < end; i++) {
     out.push({ idx: i, month: i % 12, year: Math.floor(i / 12), amount: base * SUNSHINE[i % 12] })
@@ -98,14 +98,14 @@ export function rofHistory(sub: Sub) {
   return out
 }
 
-export const rofEarned = (sub: Sub) => rofHistory(sub).reduce((a, b) => a + b.amount, 0)
+export const payoutsReceived = (sub: Sub) => payoutHistory(sub).reduce((a, b) => a + b.amount, 0)
 
 /** combined monthly payouts across subs for the last n months */
 export function combinedPayouts(subs: Sub[], n: number) {
   const end = thisMonth()
   return Array.from({ length: n }, (_, k) => {
     const idx = end - n + k
-    const amount = subs.reduce((acc, s) => (monthIndex(s.since) <= idx ? acc + monthlyRof(s) * SUNSHINE[idx % 12] : acc), 0)
+    const amount = subs.reduce((acc, s) => (monthIndex(s.since) <= idx ? acc + monthlyPayout(s) * SUNSHINE[idx % 12] : acc), 0)
     return { idx, month: idx % 12, year: Math.floor(idx / 12), amount }
   })
 }

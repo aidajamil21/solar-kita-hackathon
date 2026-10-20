@@ -70,13 +70,13 @@ export default function App() {
             <div className="eyebrow" style={{ marginTop: 22 }}>Community Energy-as-a-Service</div>
             <h1>Choose your <span>solar</span> journey.</h1>
             <p>
-              Subscribe to real solar panels in your township, receive monthly Return on Fund (ROF) and earn reward
+              Subscribe to real solar panels in your township, earn returns from projected energy savings and collect reward
               points for every clean kilowatt-hour.
             </p>
             <ul>
               <li><Check size={16} color="#F20000" /> Interactive 3D township explorer</li>
               <li><Check size={16} color="#F20000" /> Pick the exact panels you subscribe to</li>
-              <li><Check size={16} color="#F20000" /> Track ROF, rewards and impact in one place</li>
+              <li><Check size={16} color="#F20000" /> Track returns, rewards and impact in one place</li>
             </ul>
           </aside>
           <div className="device">

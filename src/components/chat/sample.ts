@@ -47,7 +47,7 @@ export const SAMPLE_CONVERSATION: ChatMessage[] = [
         basis: 'verified', asOf, source: 'Payout ledger', totalContributed: 9000, totalPayoutsReceived: 1449.23, outstandingPayouts: 0,
         nextPayout: { date: new Date(new Date().getFullYear(), new Date().getMonth(), 28).toISOString(), estimatedAmount: 47.5 },
         holdings: [
-          { projectId: 'elmina-subscription', projectName: 'Elmina Sunfield', kind: 'subscription', township: 'City of Elmina', units: 2, contributed: 1000, payoutsReceived: 134.5, status: 'active' },
+          { projectId: 'elmina-subscription', projectName: 'Elmina Sunfield', kind: 'subscription', township: 'City of Elmina', units: 1, contributed: 1000, payoutsReceived: 134.5, status: 'active' },
           { projectId: 'elmina-rooftop', projectName: 'Elmina West Homes', kind: 'rooftop', township: 'City of Elmina', units: 1, contributed: 8000, payoutsReceived: 1314.73, status: 'active' },
         ],
       } },

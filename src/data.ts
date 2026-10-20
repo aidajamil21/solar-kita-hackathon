@@ -20,7 +20,7 @@ export const KINDS: Record<SiteKind, KindMeta> = {
     icon: Sun,
     tint: '#FF6E00',
     unitName: 'panel row',
-    blurb: 'Subscribe to rows in a community solar farm and enjoy clean energy returns.',
+    blurb: 'Flexible subscription for community-scale solar. Support utility-scale solar and enjoy clean energy returns.',
   },
   investment: {
     label: 'Solar Farm Investment',
@@ -28,7 +28,7 @@ export const KINDS: Record<SiteKind, KindMeta> = {
     icon: TrendingUp,
     tint: '#FF7A45',
     unitName: 'array block',
-    blurb: 'Back a utility-scale array for longer-term, higher returns.',
+    blurb: 'Invest in larger solar assets for long-term value.',
   },
   rooftop: {
     label: 'Rooftop Initiative',
@@ -36,7 +36,7 @@ export const KINDS: Record<SiteKind, KindMeta> = {
     icon: House,
     tint: '#2F8F6B',
     unitName: 'rooftop',
-    blurb: 'Fund solar on neighbourhood homes and share the savings.',
+    blurb: 'Solar for homes, cleaner neighbourhoods.',
   },
   ev: {
     label: 'EV Charger Rooftop',
@@ -44,7 +44,7 @@ export const KINDS: Record<SiteKind, KindMeta> = {
     icon: PlugZap,
     tint: '#4C7DFF',
     unitName: 'charger bay',
-    blurb: 'Power township EV chargers with sunshine from the roof above.',
+    blurb: 'Solar-powered EV charging for a cleaner commute.',
   },
 }
 
@@ -139,10 +139,10 @@ export const KIND_PHOTOS: Record<SiteKind, { hero: string; thumb: string }> = {
 }
 
 const base = {
-  subscription: { pricePerUnit: 500, returnLow: 4, returnHigh: 6, pointsPerUnit: 100, co2PerUnit: 0.6, kwpPerUnit: 10, units: 14, cols: 2 },
-  investment: { pricePerUnit: 5000, returnLow: 6, returnHigh: 9, pointsPerUnit: 250, co2PerUnit: 2.4, kwpPerUnit: 40, units: 18, cols: 2 },
+  subscription: { pricePerUnit: 1000, returnLow: 4, returnHigh: 6, pointsPerUnit: 200, co2PerUnit: 1.2, kwpPerUnit: 10, units: 14, cols: 2 },
+  investment: { pricePerUnit: 50000, returnLow: 6, returnHigh: 9, pointsPerUnit: 500, co2PerUnit: 30, kwpPerUnit: 250, units: 18, cols: 2 },
   rooftop: { pricePerUnit: 8000, returnLow: 5, returnHigh: 8, pointsPerUnit: 100, co2PerUnit: 3.1, kwpPerUnit: 6, units: 6, cols: 3 },
-  ev: { pricePerUnit: 1500, returnLow: 5, returnHigh: 8, pointsPerUnit: 150, co2PerUnit: 0.9, kwpPerUnit: 5, units: 8, cols: 4 },
+  ev: { pricePerUnit: 10000, returnLow: 5, returnHigh: 8, pointsPerUnit: 300, co2PerUnit: 4.2, kwpPerUnit: 20, units: 8, cols: 4 },
 } as const
 
 function site(townshipId: string, kind: SiteKind, name: string, block: [number, number], extra: Partial<Site> & { taken: number[] }): Site {

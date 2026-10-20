@@ -2,10 +2,10 @@ import { ArrowDownLeft, ArrowUpRight, BarChart3, CalendarDays, ChevronLeft, Chev
 import { createElement, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ProjectArt } from '../components/Art'
-import { AreaChart, BarChart } from '../components/Charts'
+import { AreaChart } from '../components/Charts'
 import { Coin, Page, Progress, Rise, Seg, Sheet } from '../components/ui'
 import { KINDS, MONTHS, rm, siteById, townshipById } from '../data'
-import { investedOf, monthlyRof, nextPayoutDate, rofEarned, rofHistory, useStore } from '../store'
+import { investedOf, monthlyPayout, nextPayoutDate, payoutsReceived, payoutHistory, useStore } from '../store'
 
 type Range = '6M' | '1Y' | '3Y' | 'All'
 type Doc = 'tx' | 'schedule' | 'docs' | null
@@ -19,7 +19,7 @@ export default function SolarDetail() {
   const [range, setRange] = useState<Range>('1Y')
   const [doc, setDoc] = useState<Doc>(null)
 
-  const history = useMemo(() => (sub ? rofHistory(sub) : []), [sub])
+  const history = useMemo(() => (sub ? payoutHistory(sub) : []), [sub])
   const series = useMemo(() => {
     if (!sub) return []
     const invested = investedOf(sub)
@@ -48,7 +48,7 @@ export default function SolarDetail() {
   const meta = KINDS[site.kind]
   const township = townshipById(site.townshipId)
   const invested = investedOf(sub)
-  const earned = rofEarned(sub)
+  const earned = payoutsReceived(sub)
   const value = invested + earned
   const first = series[0]?.value ?? invested
   const change = value - first
@@ -131,26 +131,15 @@ export default function SolarDetail() {
         </div>
       </Rise>
 
-      {/* ---- ROF ---- */}
+      {/* ---- next payout ---- */}
       <Rise className="section">
-        <div className="card pad">
-          <div className="row between">
-            <div>
-              <h2 className="h2" style={{ fontSize: 16 }}>Return on Fund (ROF)</h2>
-              <div className="muted small">Paid monthly since {since}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div className="num" style={{ fontWeight: 800, fontSize: 19 }}>{rm(earned, 2)}</div>
-              <div className="muted small">earned to date</div>
-            </div>
+        <div className="card pad row" style={{ gap: 12 }}>
+          <span className="ic gold"><CalendarDays size={18} /></span>
+          <div className="grow">
+            <div className="muted small" style={{ fontWeight: 600 }}>Next payout</div>
+            <div style={{ fontWeight: 800 }}>{payout.toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
           </div>
-          <div style={{ marginTop: 16 }}>
-            <BarChart data={history.slice(-12).map((h) => ({ label: MONTHS[h.month].slice(0, 1), value: h.amount, tip: `${MONTHS[h.month]} ${h.year}` }))} format={(v) => rm(v, 2)} color="#FF6E00" />
-          </div>
-          <div className="row" style={{ marginTop: 14, background: 'var(--brand-soft)', padding: '10px 12px', borderRadius: 12 }}>
-            <CalendarDays size={17} color="#E60000" />
-            <span className="small grow">Next payout <b>{rm(monthlyRof(sub), 2)}</b> on {payout.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-          </div>
+          <button className="pill-link" onClick={() => setDoc('schedule')}>Schedule <ChevronRight size={12} /></button>
         </div>
       </Rise>
 
@@ -225,7 +214,7 @@ export default function SolarDetail() {
               {history.slice(-6).reverse().map((h) => (
                 <div key={h.idx} className="list-row">
                   <span className="ic green sm"><ArrowDownLeft size={16} /></span>
-                  <div className="grow"><div className="title">ROF payout</div><div className="desc">28 {MONTHS[h.month]} {h.year}</div></div>
+                  <div className="grow"><div className="title">Payout</div><div className="desc">28 {MONTHS[h.month]} {h.year}</div></div>
                   <b className="num">+{rm(h.amount, 2)}</b>
                 </div>
               ))}
@@ -240,7 +229,7 @@ export default function SolarDetail() {
         {doc === 'schedule' && (
           <>
             <h2 className="h2" style={{ fontSize: 19 }}>Payout schedule</h2>
-            <p className="sub" style={{ marginTop: 4 }}>ROF is distributed on the 28th of every month.</p>
+            <p className="sub" style={{ marginTop: 4 }}>Payouts are distributed on the 28th of every month, based on projected energy savings.</p>
             <div className="list" style={{ marginTop: 6 }}>
               {Array.from({ length: 6 }, (_, k) => {
                 const d = new Date(payout.getFullYear(), payout.getMonth() + k, 28)
@@ -248,7 +237,7 @@ export default function SolarDetail() {
                   <div key={k} className="list-row">
                     <span className="ic blue sm"><CalendarDays size={16} /></span>
                     <div className="grow"><div className="title">{d.toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</div><div className="desc">{k === 0 ? 'Next payout' : 'Projected'}</div></div>
-                    <b className="num">{rm(monthlyRof(sub), 2)}</b>
+                    <b className="num">{rm(monthlyPayout(sub), 2)}</b>
                   </div>
                 )
               })}

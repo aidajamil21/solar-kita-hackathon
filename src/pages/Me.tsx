@@ -186,9 +186,9 @@ export default function Me() {
             </button>
           </div>
           {[
-            { icon: FileText, t: 'Statements & tax documents', d: 'Annual ROF statement 2025' },
+            { icon: FileText, t: 'Statements & tax documents', d: 'Annual statement 2025' },
             { icon: Shield, t: 'Privacy & security', d: 'Biometric login enabled' },
-            { icon: HelpCircle, t: 'Help centre', d: 'How subscriptions and ROF work' },
+            { icon: HelpCircle, t: 'Help centre', d: 'How subscriptions and returns work' },
           ].map((r) => (
             <button key={r.t} className="list-row" onClick={() => store.toast(`${r.t} opened`)}>
               <span className="ic sm grey"><r.icon size={16} /></span>
