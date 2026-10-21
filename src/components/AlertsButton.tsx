@@ -1,7 +1,8 @@
 import { Bell, CheckCheck, Sparkles } from 'lucide-react'
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Alert } from '../api/types'
+import { backendApi } from '../api/backend'
 import { siteById } from '../data'
 import { useStore } from '../store'
 import { AlertRow } from './chat/Cards'
@@ -16,7 +17,19 @@ const subscribe = (l: () => void) => { listeners.add(l); return () => { listener
 const useAlertsState = () => useSyncExternalStore(subscribe, () => snap)
 
 export const openAlerts = () => set({ open: true })
-const markRead = (id?: string) => set({ alerts: snap.alerts.map((a) => (!id || a.id === id ? { ...a, read: true } : a)) })
+const markRead = async (id?: string) => {
+  set({ alerts: snap.alerts.map((a) => (!id || a.id === id ? { ...a, read: true } : a)) })
+  if (!backendApi.isConfigured()) return
+  try {
+    if (id) {
+      await backendApi.markAlertRead(id)
+      return
+    }
+    await Promise.all(snap.alerts.map((a) => backendApi.markAlertRead(a.id)))
+  } catch {
+    // Keep optimistic UI state in demo mode if API mark-read fails.
+  }
+}
 
 /** where tapping an alert takes the user: a route plus the section of that page to scroll to */
 export interface AlertTarget { to: string; section?: string; openDoc?: 'docs' }
@@ -60,6 +73,7 @@ export function AlertsSheet() {
   const store = useStore()
   const { alerts, open } = useAlertsState()
   const [tab, setTab] = useState<'All' | 'Unread'>('All')
+  const [loading, setLoading] = useState(false)
   const unread = alerts.filter((a) => !a.read).length
   const shown = alerts.filter((a) => tab === 'All' || !a.read)
   const day = 86_400_000
@@ -67,8 +81,28 @@ export function AlertsSheet() {
   const older = shown.filter((a) => !fresh.includes(a))
   const close = () => set({ open: false })
 
+  useEffect(() => {
+    if (!open || !backendApi.isConfigured()) return
+    let live = true
+    setLoading(true)
+    backendApi.getActiveAlerts()
+      .then(async (rows) => {
+        if (!live) return
+        if (rows.length > 0) {
+          set({ alerts: rows })
+          return
+        }
+        await backendApi.seedDemoData((import.meta.env.VITE_DEMO_CONVERSATION_ID as string | undefined)?.trim() || '00000000-0000-0000-0000-000000000001')
+        const seeded = await backendApi.getActiveAlerts()
+        if (live) set({ alerts: seeded })
+      })
+      .catch(() => { /* fallback to local sample alerts */ })
+      .finally(() => { if (live) setLoading(false) })
+    return () => { live = false }
+  }, [open])
+
   const go = (a: Alert) => {
-    markRead(a.id)
+    void markRead(a.id)
     const t = alertTarget(a, (id) => store.subs.some((s) => s.siteId === id))
     close()
     nav(t.to, { state: { from: 'alerts', section: t.section, openDoc: t.openDoc } })
@@ -82,13 +116,14 @@ export function AlertsSheet() {
           <h2 className="h2" style={{ fontSize: 18, marginTop: 4 }}>Notifications</h2>
         </div>
         {unread > 0 && (
-          <button className="pill-link" onClick={() => markRead()}><CheckCheck size={13} /> Mark all read</button>
+          <button className="pill-link" onClick={() => { void markRead() }}><CheckCheck size={13} /> Mark all read</button>
         )}
       </div>
       <div style={{ margin: '14px 0 4px' }}>
         <Seg id="alerts" options={['All', 'Unread'] as const as ('All' | 'Unread')[]} value={tab} onChange={setTab} />
       </div>
-      {shown.length === 0 && <div className="empty">You’re all caught up.</div>}
+      {loading && <div className="empty">Loading alerts…</div>}
+      {!loading && shown.length === 0 && <div className="empty">You’re all caught up.</div>}
       {[['New', fresh], ['Earlier', older]].map(([label, list]) => (list as Alert[]).length > 0 && (
         <div key={label as string}>
           <div className="eyebrow" style={{ margin: '14px 0 2px' }}>{label as string}</div>

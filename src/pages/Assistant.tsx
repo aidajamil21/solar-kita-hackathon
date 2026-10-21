@@ -2,9 +2,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowUp, BadgeCheck, ChevronLeft, LineChart, PlugZap, RotateCcw, ShieldCheck, Sparkles } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { backendApi } from '../api/backend'
 import type { ChatMessage } from '../api/types'
 import { AttachmentView, ToolTrace } from '../components/chat/Cards'
 import { SAMPLE_CONVERSATION, SUGGESTIONS } from '../components/chat/sample'
+
+const DEMO_CONVERSATION_ID = (import.meta.env.VITE_DEMO_CONVERSATION_ID as string | undefined)?.trim() || '00000000-0000-0000-0000-000000000001'
 
 /** tiny markdown: paragraphs, "- " bullet lists and **bold** */
 function Rich({ text }: { text: string }) {
@@ -87,6 +90,7 @@ export default function Assistant() {
   const [input, setInput] = useState('')
   const scroller = useRef<HTMLDivElement>(null)
   const timers = useRef<number[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   useEffect(() => {
@@ -94,13 +98,47 @@ export default function Assistant() {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })
   }, [messages, pending, streaming])
 
+  useEffect(() => {
+    if (!backendApi.isConfigured()) return
+    let live = true
+    backendApi.listMessages(DEMO_CONVERSATION_ID)
+      .then(async (rows) => {
+        if (!live) return
+        if (rows.length > 0) {
+          setMessages(rows)
+          return
+        }
+        const seeded = await backendApi.seedDemoData(DEMO_CONVERSATION_ID)
+        const loaded = await backendApi.listMessages(seeded.conversationId)
+        if (live) setMessages(loaded)
+      })
+      .catch(() => { if (live) setError('Could not load existing messages from backend.') })
+    return () => { live = false }
+  }, [])
+
   const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)) }
 
-  /** Preview only: plays the sample answer for a suggested question. Replace with the chat API. */
-  const send = (text: string) => {
+  const send = async (text: string) => {
     const q = text.trim()
     if (!q || pending || streaming) return
     setInput('')
+    setError(null)
+
+    if (backendApi.isConfigured()) {
+      const userMsg: ChatMessage = { id: `u${Date.now()}`, role: 'user', content: q, createdAt: new Date().toISOString() }
+      setMessages((m) => [...m, userMsg])
+      setPending({ tools: [] })
+      try {
+        const reply = await backendApi.sendMessage(DEMO_CONVERSATION_ID, q)
+        setPending(null)
+        setMessages((m) => [...m, reply])
+        return
+      } catch {
+        setPending(null)
+        setError('Backend chat is not ready yet. Showing sample response mode.')
+      }
+    }
+
     setMessages((m) => [...m, { id: `u${Date.now()}`, role: 'user', content: q, createdAt: new Date().toISOString() }])
     const idx = SAMPLE_CONVERSATION.findIndex((m) => m.role === 'user' && m.content.toLowerCase() === q.toLowerCase())
     const sample = idx >= 0 ? SAMPLE_CONVERSATION[idx + 1] : null
@@ -148,6 +186,7 @@ export default function Assistant() {
 
       {/* messages */}
       <div className="chat-scroll" ref={scroller}>
+        {error && <div className="empty" style={{ marginBottom: 10 }}>{error}</div>}
         {messages.length === 0 && !pending && !streaming && <Welcome onPick={send} />}
         <div className="col" style={{ gap: 14 }}>
           {messages.map((m) => <Bubble key={m.id} m={m} />)}
