@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Bell, Check, ChevronRight, FileText, Globe2, HelpCircle, Landmark, Leaf, Lock, MapPin, RotateCcw, Shield, Star, Sun, UserRound, Zap } from 'lucide-react'
+import { Bell, Check, ChevronRight, FileText, Globe2, HelpCircle, Landmark, Leaf, Lock, Map as MapIcon, MapPin, RotateCcw, Shield, Star, Sun, UserRound, Zap } from 'lucide-react'
 import { createElement, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart, Ring } from '../components/Charts'
@@ -183,6 +183,14 @@ export default function Me() {
             <button role="switch" aria-checked={notif} aria-label="Toggle alerts" onClick={() => setNotif((n) => !n)}
               style={{ width: 46, height: 28, borderRadius: 14, background: notif ? 'var(--brand)' : '#D8D7D2', position: 'relative', transition: 'background .3s' }}>
               <motion.span layout transition={{ type: 'spring', damping: 22, stiffness: 420 }} style={{ position: 'absolute', top: 3, left: notif ? 21 : 3, width: 22, height: 22, borderRadius: 11, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
+            </button>
+          </div>
+          <div className="list-row">
+            <span className="ic sm blue"><MapIcon size={16} /></span>
+            <div className="grow"><div className="title">3D township map</div><div className="desc">{store.mapMode === '3d' ? 'On · switch off for a lighter 2D map' : 'Off · using the lighter 2D map'}</div></div>
+            <button role="switch" aria-checked={store.mapMode === '3d'} aria-label="Toggle 3D map" onClick={() => store.setMapMode(store.mapMode === '3d' ? '2d' : '3d')}
+              style={{ width: 46, height: 28, borderRadius: 14, background: store.mapMode === '3d' ? 'var(--brand)' : '#D8D7D2', position: 'relative', transition: 'background .3s' }}>
+              <motion.span layout transition={{ type: 'spring', damping: 22, stiffness: 420 }} style={{ position: 'absolute', top: 3, left: store.mapMode === '3d' ? 21 : 3, width: 22, height: 22, borderRadius: 11, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
             </button>
           </div>
           {[

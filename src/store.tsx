@@ -1,5 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+﻿import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { REWARDS, SUNSHINE, siteById, type Site } from './data'
+
+export type MapMode = '3d' | '2d'
 
 export interface Sub {
   siteId: string
@@ -33,6 +35,8 @@ interface State {
   redemptions: Redemption[]
   activity: Activity[]
   checkins: string[]
+  /** explore map renderer: the GPU-heavy 3D scene or a light flat 2D map */
+  mapMode: MapMode
 }
 
 const DAY = 86_400_000
@@ -51,11 +55,12 @@ const SEED: State = {
   ],
   activity: [
     { id: 'a1', title: 'Monthly solar bonus', points: 50, at: now - 2 * DAY, type: 'bonus' },
-    { id: 'a2', title: 'Joined “Lights Out Hour”', points: 120, at: now - 6 * DAY, type: 'event' },
+    { id: 'a2', title: 'Joined â€œLights Out Hourâ€', points: 120, at: now - 6 * DAY, type: 'event' },
     { id: 'a3', title: 'Redeemed EV Charging Credit', points: -800, at: now - 12 * DAY, type: 'redeem' },
     { id: 'a4', title: 'Energy-saving quiz', points: 50, at: now - 15 * DAY, type: 'quiz' },
   ],
   checkins: [],
+  mapMode: '3d',
 }
 
 const KEY = 'solar-kita-v3'
@@ -126,6 +131,7 @@ interface Store extends State {
   redeem: (rewardId: string) => Redemption | null
   checkIn: () => boolean
   setTownship: (id: string) => void
+  setMapMode: (mode: MapMode) => void
   reset: () => void
   toast: (text: string) => void
   toasts: Toast[]
@@ -210,7 +216,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     redeem,
     checkIn,
     setTownship: (id) => setState((s) => ({ ...s, township: id })),
-    reset: () => setState(SEED),
+    setMapMode: (mapMode) => setState((s) => ({ ...s, mapMode })),
+    reset: () => setState((s) => ({ ...SEED, mapMode: s.mapMode })),
     takenFor: (site) => new Set(site.taken),
     mineFor: (site) => new Set(state.subs.find((x) => x.siteId === site.id)?.units ?? []),
   }), [state, toasts, toast, subscribe, redeem, checkIn])

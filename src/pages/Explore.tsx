@@ -11,6 +11,7 @@ import { KINDS, rm, SITES, siteById, STATES, TOWNSHIPS, townshipById, type Site,
 import { useStore } from '../store'
 
 const TownshipMap = lazy(() => import('../components/map/TownshipMap'))
+const Map2D = lazy(() => import('../components/map/Map2D'))
 
 const FILTERS: (SiteKind | 'all')[] = ['all', 'subscription', 'investment', 'rooftop', 'ev']
 
@@ -19,6 +20,7 @@ export default function Explore() {
   const nav = useNavigate()
   const [params, setParams] = useSearchParams()
   const township = townshipById(store.township)
+  const mode = store.mapMode
   const sites = useMemo(() => SITES.filter((s) => s.townshipId === township.id), [township.id])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -97,22 +99,36 @@ export default function Explore() {
 
   return (
     <div className={`map-page${night ? ' night-ui' : ''}`}>
-      <Suspense fallback={<MapLoading />}>
-        <TownshipMap
-          township={township}
-          sites={sites}
-          selectedId={selectedId}
-          filter={filter}
-          night={night}
-          flow={flow}
-          autoRotate={!selectedId && !interacted}
-          unitState={unitState}
-          mineCount={(s) => store.mineFor(s).size}
-          onSelect={setSelectedId}
-          onUnit={(s, i) => (s.id === selectedId ? toggleUnit(s, i) : setSelectedId(s.id))}
-          onInteract={onInteract}
-          api={api}
-        />
+      <Suspense fallback={<MapLoading mode={mode} />}>
+        {mode === '2d' ? (
+          <Map2D
+            township={township}
+            sites={sites}
+            selectedId={selectedId}
+            filter={filter}
+            night={night}
+            mineCount={(s) => store.mineFor(s).size}
+            onSelect={setSelectedId}
+            onInteract={onInteract}
+            api={api}
+          />
+        ) : (
+          <TownshipMap
+            township={township}
+            sites={sites}
+            selectedId={selectedId}
+            filter={filter}
+            night={night}
+            flow={flow}
+            autoRotate={!selectedId && !interacted}
+            unitState={unitState}
+            mineCount={(s) => store.mineFor(s).size}
+            onSelect={setSelectedId}
+            onUnit={(s, i) => (s.id === selectedId ? toggleUnit(s, i) : setSelectedId(s.id))}
+            onInteract={onInteract}
+            api={api}
+          />
+        )}
       </Suspense>
 
       {/* ---- top overlay ---- */}
@@ -126,7 +142,15 @@ export default function Explore() {
           <span className="small muted" style={{ fontWeight: 600 }}>{sites.length} sites</span>
           <ChevronDown size={18} />
         </button>
-        <div className="chips" style={{ marginTop: 10 }}>
+        <div className="map-mode" role="group" aria-label="Map view">
+          {(['3d', '2d'] as const).map((m) => (
+            <button key={m} className={mode === m ? 'active' : ''} aria-pressed={mode === m}
+              onClick={() => { if (mode !== m) { store.setMapMode(m); store.toast(m === '2d' ? '2D map on — lighter on your device' : '3D map on') } }}>
+              {m.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        <div className="chips" style={{ marginTop: 4 }}>
           {FILTERS.map((f) => {
             const count = f === 'all' ? sites.length : sites.filter((s) => s.kind === f).length
             if (f !== 'all' && count === 0) return null
@@ -142,13 +166,13 @@ export default function Explore() {
 
       <AnimatePresence>
         {!selected && (
-          <motion.div className="map-ctrl" style={{ top: 132 }} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
+          <motion.div className="map-ctrl" style={{ top: 176 }} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
             <button aria-label={night ? 'Switch to day' : 'Switch to night'} className={night ? 'on' : ''} onClick={() => setNight((n) => !n)}>
               {night ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-            <button aria-label="Toggle energy flow" className={flow ? 'on' : ''} onClick={() => { setFlow((f) => !f); store.toast(flow ? 'Energy flow hidden' : 'Showing live energy flow') }}>
+            {mode === '3d' && <button aria-label="Toggle energy flow" className={flow ? 'on' : ''} onClick={() => { setFlow((f) => !f); store.toast(flow ? 'Energy flow hidden' : 'Showing live energy flow') }}>
               <Zap size={18} />
-            </button>
+            </button>}
             <div className="stack">
               <button aria-label="Zoom in" onClick={() => api.current?.zoom(0.75)}><Plus size={18} /></button>
               <button aria-label="Zoom out" onClick={() => api.current?.zoom(1.33)}><Minus size={18} /></button>
@@ -211,12 +235,12 @@ export default function Explore() {
   )
 }
 
-function MapLoading() {
+function MapLoading({ mode }: { mode: '3d' | '2d' }) {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
       <div className="col" style={{ alignItems: 'center', gap: 12 }}>
         <div className="spinner" />
-        <p className="sub">Loading 3D township…</p>
+        <p className="sub">{`Loading ${mode === '3d' ? '3D' : '2D'} township…`}</p>
       </div>
     </div>
   )

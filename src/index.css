@@ -246,6 +246,11 @@ h1, h2, h3, h4, p { margin: 0; }
 .map-canvas { position: absolute; inset: 0; }
 .map-top { position: absolute; top: 0; left: 0; right: 0; z-index: 30; padding: 12px 16px 0; pointer-events: none; }
 .map-top > * { pointer-events: auto; }
+.map-mode { display: flex; width: fit-content; margin: 8px 0 0 auto; padding: 3px; gap: 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 4px 14px -8px rgba(16, 24, 40, 0.3); }
+.map-mode button { height: 28px; min-width: 44px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; color: var(--ink-2); transition: background 0.2s, color 0.2s; }
+.map-mode button.active { background: var(--brand); color: #fff; }
+.night-ui .map-mode { background: rgba(24, 30, 42, 0.78); border-color: rgba(255, 255, 255, 0.08); }
+.night-ui .map-mode button:not(.active) { color: #e7eaf0; }
 .glass-card { background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(16px); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 6px 20px -10px rgba(16, 24, 40, 0.25); }
 .night-ui .glass-card, .night-ui .chip:not(.active), .night-ui .map-ctrl button { background: rgba(24, 30, 42, 0.78); color: #e7eaf0; border-color: rgba(255, 255, 255, 0.08); }
 .night-ui .chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
