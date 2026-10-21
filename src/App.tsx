@@ -19,7 +19,7 @@ function Screens() {
     <AnimatePresence mode="popLayout" initial={false}>
       <motion.div
         key={loc.pathname}
-        style={{ position: 'absolute', inset: 0 }}
+        className="screen-host"
         initial={{ opacity: 0, scale: 0.985 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0 }}
@@ -47,7 +47,7 @@ function Chrome() {
   const showFab = !inChat && loc.pathname !== '/explore'
   return (
     <>
-      {!inChat && <BottomNav />}
+      <BottomNav hiddenOnPhone={inChat} />
       <AnimatePresence>
         {showFab && (
           <motion.button className="ai-fab" onClick={() => nav('/assistant')} aria-label="Ask Solar Analyst"

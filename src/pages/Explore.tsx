@@ -162,7 +162,7 @@ export default function Explore() {
       <AnimatePresence>
         {!selected && (
           <motion.div
-            style={{ position: 'absolute', left: 0, right: 0, bottom: 86, zIndex: 30 }}
+            className="site-carousel"
             initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 260 }}
           >

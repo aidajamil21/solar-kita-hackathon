@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Gift, House, LayoutGrid, Map, UserRound } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import { LogoMark } from './ui'
 
 const ITEMS = [
   { to: '/', label: 'Home', icon: House, end: true },
@@ -10,9 +11,11 @@ const ITEMS = [
   { to: '/me', label: 'Profile', icon: UserRound },
 ]
 
-export default function BottomNav() {
+/** bottom tab bar on phones, top menu on laptops; `hiddenOnPhone` hides it only in the phone layout (chat is full-screen there) */
+export default function BottomNav({ hiddenOnPhone = false }: { hiddenOnPhone?: boolean }) {
   return (
-    <nav className="nav" aria-label="Main">
+    <nav className={hiddenOnPhone ? 'nav nav-phone-hidden' : 'nav'} aria-label="Main">
+      <div className="nav-brand"><LogoMark size={34} /><span>Solar Kita</span></div>
       {ITEMS.map(({ to, label, icon: Icon, end }) => (
         <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? 'active' : '')}>
           {({ isActive }) => (
