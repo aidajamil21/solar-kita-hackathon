@@ -1,9 +1,9 @@
 import { animate, AnimatePresence, motion, useDragControls, useMotionValue, useTransform, type DragControls, type Variants } from 'framer-motion'
-import { Check, CheckCircle2, X } from 'lucide-react'
-import AlertsButton from './AlertsButton'
+import { Check, CheckCircle2, ChevronLeft, X } from 'lucide-react'
+import AlertsButton, { openAlerts } from './AlertsButton'
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { asset } from '../asset'
 
@@ -109,19 +109,49 @@ export const rise: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 }
 
-export function Page({ children }: { children: ReactNode }) {
+/** opened from a notification: scroll to the section it points at and flash it */
+export function useFromAlert() {
+  const state = useLocation().state as { from?: string; section?: string } | null
+  const section = state?.section
+  useEffect(() => {
+    if (!section) return
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(section)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      el.classList.add('flash')
+      window.setTimeout(() => el.classList.remove('flash'), 2000)
+    }, 520)
+    return () => window.clearTimeout(t)
+  }, [section])
+  return state?.from === 'alerts'
+}
+
+/** top-left back button on pages reached from a notification; returns to the notifications list */
+export function AlertBack({ inline }: { inline?: boolean }) {
+  const nav = useNavigate()
+  return (
+    <div className={`alert-back${inline ? ' inline' : ''}`}>
+      <button onClick={() => { nav(-1); openAlerts() }} aria-label="Back to notifications"><ChevronLeft size={18} /> Back</button>
+    </div>
+  )
+}
+
+export function Page({ children, ownBack }: { children: ReactNode; ownBack?: boolean }) {
+  const fromAlert = useFromAlert()
   return (
     <div className="screen">
       <motion.div className="page" variants={stagger} initial="hidden" animate="show">
         <div className="page-bg" />
+        {fromAlert && !ownBack && <AlertBack />}
         {children}
       </motion.div>
     </div>
   )
 }
 
-export const Rise = ({ children, className, style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) => (
-  <motion.div variants={rise} className={className} style={style}>{children}</motion.div>
+export const Rise = ({ children, className, style, id }: { children: ReactNode; className?: string; style?: React.CSSProperties; id?: string }) => (
+  <motion.div variants={rise} className={className} style={style} id={id}>{children}</motion.div>
 )
 
 /* ---------- bottom sheet ---------- */

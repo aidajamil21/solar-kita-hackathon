@@ -1,11 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, Check, ChevronDown, Compass, CreditCard, Landmark, LayoutGrid, Leaf, MapPin, Minus, Moon, Plus, Search, Star, Sun, Users, Wallet, X, Zap } from 'lucide-react'
 import { createElement, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ProjectArt, TownPhoto } from '../components/Art'
 import type { UnitState } from '../components/map/Sites'
 import type { MapApi } from '../components/map/TownshipMap'
-import { Coin, Progress, Sheet, SuccessMark } from '../components/ui'
+import { AlertBack, Coin, Progress, Sheet, SuccessMark, useFromAlert } from '../components/ui'
 import { ProjectFacts } from '../components/ProjectFacts'
 import { KINDS, rm, SITES, siteById, STATES, TOWNSHIPS, townshipById, type Site, type SiteKind } from '../data'
 import { useStore } from '../store'
@@ -21,6 +21,8 @@ export default function Explore() {
   const [params, setParams] = useSearchParams()
   const township = townshipById(store.township)
   const mode = store.mapMode
+  const fromAlert = useFromAlert()
+  const loc = useLocation()
   const sites = useMemo(() => SITES.filter((s) => s.townshipId === township.id), [township.id])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -44,9 +46,9 @@ export default function Explore() {
     if (s) {
       if (s.townshipId !== store.township) store.setTownship(s.townshipId)
       setSelectedId(s.id)
-      setParams({}, { replace: true })
+      setParams({}, { replace: true, state: loc.state })
     }
-  }, [params, setParams, store])
+  }, [params, setParams, store, loc.state])
 
   // fly the camera to whatever is selected
   const hadSelection = useRef(false)
@@ -133,6 +135,7 @@ export default function Explore() {
 
       {/* ---- top overlay ---- */}
       <div className="map-top">
+        {fromAlert && <AlertBack inline />}
         <button className="glass-card town-btn" onClick={() => setTownOpen(true)}>
           <span className="town-thumb"><TownPhoto township={township} /></span>
           <span className="grow">
@@ -166,7 +169,7 @@ export default function Explore() {
 
       <AnimatePresence>
         {!selected && (
-          <motion.div className="map-ctrl" style={{ top: 176 }} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
+          <motion.div className="map-ctrl" style={{ top: fromAlert ? 220 : 176 }} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
             <button aria-label={night ? 'Switch to day' : 'Switch to night'} className={night ? 'on' : ''} onClick={() => setNight((n) => !n)}>
               {night ? <Moon size={18} /> : <Sun size={18} />}
             </button>

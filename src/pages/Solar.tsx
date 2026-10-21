@@ -107,7 +107,7 @@ export default function Solar() {
         </div>
       </Rise>
 
-      <Rise className="section">
+      <Rise className="section" id="credits">
         <div className="section-head"><h2 className="h2">Recent energy savings credits</h2></div>
         <div className="card" style={{ padding: '2px 16px' }}>
           <div className="list">

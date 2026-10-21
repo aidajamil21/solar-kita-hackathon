@@ -41,7 +41,7 @@ export default function Rewards() {
       </Hero>
 
       {/* ---- points ---- */}
-      <Rise className="section overlap">
+      <Rise className="section overlap" id="points">
         <div className="card raised pad">
           <div className="row" style={{ alignItems: 'flex-start' }}>
             <span className="ic lg solid"><Star size={24} fill="#fff" /></span>

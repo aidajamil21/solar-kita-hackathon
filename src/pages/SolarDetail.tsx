@@ -1,9 +1,10 @@
 import { ArrowDownLeft, ArrowUpRight, BarChart3, CalendarDays, ChevronLeft, ChevronRight, Coins, Download, FileText, House, Leaf, Map, MapPin, Plus, Receipt, Star, TreePine, TrendingUp, Users, Zap } from 'lucide-react'
 import { createElement, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ProjectArt } from '../components/Art'
 import { AreaChart } from '../components/Charts'
-import { Coin, Page, Progress, Rise, Seg, Sheet } from '../components/ui'
+import { Coin, Page, Progress, Rise, Seg, Sheet, useFromAlert } from '../components/ui'
+import { openAlerts } from '../components/AlertsButton'
 import { KINDS, MONTHS, rm, siteById, townshipById } from '../data'
 import { investedOf, monthlyPayout, nextPayoutDate, payoutsReceived, payoutHistory, useStore } from '../store'
 
@@ -17,7 +18,9 @@ export default function SolarDetail() {
   const site = siteById(siteId ?? '')
   const sub = store.subs.find((s) => s.siteId === siteId)
   const [range, setRange] = useState<Range>('1Y')
-  const [doc, setDoc] = useState<Doc>(null)
+  const fromAlert = useFromAlert()
+  const openDoc = (useLocation().state as { openDoc?: Doc } | null)?.openDoc ?? null
+  const [doc, setDoc] = useState<Doc>(openDoc)
 
   const history = useMemo(() => (sub ? payoutHistory(sub) : []), [sub])
   const series = useMemo(() => {
@@ -59,7 +62,9 @@ export default function SolarDetail() {
     <Page>
       <Rise>
         <div className="row between" style={{ padding: '8px 0 14px' }}>
-          <Link to="/solar" className="row" style={{ gap: 6, fontWeight: 600, fontSize: 14 }}><ChevronLeft size={20} /> Back to Projects</Link>
+          {fromAlert
+            ? <button className="row" style={{ gap: 6, fontWeight: 600, fontSize: 14 }} onClick={() => { nav(-1); openAlerts() }}><ChevronLeft size={20} /> Back to notifications</button>
+            : <Link to="/solar" className="row" style={{ gap: 6, fontWeight: 600, fontSize: 14 }}><ChevronLeft size={20} /> Back to Projects</Link>}
           <span className="pill green"><Leaf size={12} /> Active</span>
         </div>
       </Rise>
@@ -88,7 +93,7 @@ export default function SolarDetail() {
       </Rise>
 
       {/* ---- performance ---- */}
-      <Rise className="section">
+      <Rise className="section" id="performance">
         <div className="card pad">
           <div className="row between">
             <div className="row" style={{ gap: 10 }}><span className="ic sm"><BarChart3 size={16} /></span><h2 className="h2" style={{ fontSize: 16 }}>Performance</h2></div>
@@ -144,7 +149,7 @@ export default function SolarDetail() {
       </Rise>
 
       {/* ---- your units ---- */}
-      <Rise className="section">
+      <Rise className="section" id="units">
         <div className="card pad">
           <div className="row between">
             <h2 className="h2" style={{ fontSize: 16 }}>Your {meta.unitName}s</h2>
@@ -201,7 +206,7 @@ export default function SolarDetail() {
         </div>
       </Rise>
 
-      <Rise className="section grid-2">
+      <Rise className="section grid-2" id="documents">
         <button className="btn outline" onClick={() => nav(`/explore?site=${site.id}`)}><Plus size={17} /> Add units</button>
         <button className="btn primary" onClick={() => setDoc('docs')}><FileText size={17} /> Documents</button>
       </Rise>

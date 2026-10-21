@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import { HashRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { AlertsSheet } from './components/AlertsButton'
 import BottomNav from './components/BottomNav'
 import { Check } from 'lucide-react'
 import { LogoMark, Toasts } from './components/ui'
@@ -83,6 +84,7 @@ export default function App() {
             <Screens />
             <Chrome />
             <div id="sheet-root" />
+            <AlertsSheet />
             <Toasts />
           </div>
         </div>
