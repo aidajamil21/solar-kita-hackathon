@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Bike, CalendarCheck, ChevronRight, Clock, Copy, Footprints, Gift, History, Lock, Star, Sun, TrendingUp, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Bike, CalendarCheck, ChevronRight, Clock, Copy, Footprints, Gift, History, Lock, PiggyBank, Star, Sun, TrendingUp, type LucideIcon } from 'lucide-react'
 import { createElement, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { VoucherArt } from '../components/Art'
@@ -7,6 +7,8 @@ import { Coin, Count, Hero, Page, Progress, Rise, Sheet, SuccessMark } from '../
 import { EARN_WAYS, levelFor, REWARD_CATS, REWARDS, type Reward, type RewardCat } from '../data'
 import { useStore, type ActivityType } from '../store'
 import { asset } from '../asset'
+import { Info } from '../components/Info'
+import { HELP } from '../help'
 
 const BANNERS = [
   { id: 'sdp50', eyebrow: 'Featured reward', title: ['Sime Darby Property', 'Shopping Voucher'], body: 'Redeem 1,000 points for a RM50 voucher. Shop, dine and live greener.', photo: null },
@@ -15,7 +17,7 @@ const BANNERS = [
 ]
 
 const ACTIVITY_ICON: Record<ActivityType, LucideIcon> = {
-  subscribe: Sun, redeem: Gift, bonus: Star, event: CalendarCheck, quiz: TrendingUp, checkin: CalendarCheck, walk: Footprints, cycle: Bike,
+  subscribe: Sun, redeem: Gift, bonus: Star, event: CalendarCheck, quiz: TrendingUp, checkin: CalendarCheck, walk: Footprints, cycle: Bike, plan: PiggyBank,
 }
 
 export default function Rewards() {
@@ -46,7 +48,7 @@ export default function Rewards() {
           <div className="row" style={{ alignItems: 'flex-start' }}>
             <span className="ic lg solid"><Star size={24} fill="#fff" /></span>
             <div className="grow">
-              <div className="muted small" style={{ fontWeight: 600 }}>Your Community Energy Points</div>
+              <div className="muted small" style={{ fontWeight: 600 }}>Your Community Energy Points<Info size={13}>{HELP.pointsBalance}</Info></div>
               <div className="row" style={{ gap: 6, alignItems: 'baseline' }}>
                 <span style={{ fontSize: 30, fontWeight: 800 }}><Count value={store.points} /></span>
                 <span style={{ fontWeight: 600, color: 'var(--ink-2)' }}>points</span>
@@ -58,7 +60,7 @@ export default function Rewards() {
             <div style={{ marginTop: 14 }}>
               <Progress value={lvl.progress} />
               <div className="row between" style={{ marginTop: 7, fontSize: 11.5 }}>
-                <span className="muted">Level {lvl.cur.level} · <b style={{ color: 'var(--ink)' }}>{lvl.cur.name}</b></span>
+                <span className="muted">Level {lvl.cur.level} · <b style={{ color: 'var(--ink)' }}>{lvl.cur.name}</b><Info size={12}>{HELP.level}</Info></span>
                 <span className="muted">{(lvl.next.min - store.lifetime).toLocaleString()} to {lvl.next.name}</span>
               </div>
             </div>
@@ -168,6 +170,15 @@ export default function Rewards() {
           </div>
           <ChevronRight size={16} className="muted" />
         </motion.button>
+        <motion.button whileTap={{ scale: 0.98 }} className="card row" style={{ padding: 14, textAlign: 'left', width: '100%', marginTop: 10, gap: 12 }} onClick={() => nav('/plan')}>
+          <span className="ic"><PiggyBank size={20} /></span>
+          <div className="grow">
+            <div style={{ fontWeight: 800, fontSize: 14 }}>Solar Builder Plan</div>
+            <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>A monthly amount that comes back over 10 years, plus 3% a year.</div>
+            <span className="pill" style={{ marginTop: 8 }}><Coin size={12} /> 1 point per RM 5 · streak bonuses</span>
+          </div>
+          <ChevronRight size={16} className="muted" />
+        </motion.button>
         <div className="grid-2" style={{ marginTop: 10 }}>
           {EARN_WAYS.map((w) => (
             <motion.button key={w.id} whileTap={{ scale: 0.97 }} className="card" style={{ padding: 14, textAlign: 'left' }} onClick={() => (w.to ? nav(w.to) : null)}>
@@ -258,7 +269,7 @@ function RedeemSheet({ reward: open, onClose }: { reward: Reward | null; onClose
           <h2 className="h2" style={{ fontSize: 21, marginTop: 16 }}>{reward.title}</h2>
           <p className="sub" style={{ marginTop: 4 }}>{reward.detail}</p>
           <div className="kv" style={{ marginTop: 16 }}>
-            <div><div><div className="k">Cost</div><div className="v row" style={{ gap: 5 }}><Coin size={15} />{reward.cost.toLocaleString()}</div></div></div>
+            <div><div><div className="k">Cost<Info size={12}>{HELP.redeem}</Info></div><div className="v row" style={{ gap: 5 }}><Coin size={15} />{reward.cost.toLocaleString()}</div></div></div>
             <div><div><div className="k">Balance after</div><div className="v" style={{ color: can ? undefined : 'var(--rose)' }}>{(store.points - reward.cost).toLocaleString()}</div></div></div>
           </div>
           <button className="btn primary block" style={{ marginTop: 18 }} disabled={!can} onClick={() => { const r = store.redeem(reward.id); if (r) setCode(r.code) }}>

@@ -60,6 +60,16 @@ Go Green (walk or cycle in your township to earn points; needs `green.sql`):
 - `GET /api/green/trips`: recent walks and rides
 - `POST /api/green/trips` with `{ mode: 'walk' | 'cycle', source: 'gps' | 'demo', path: [{ lat, lon, t }] }`: the server recomputes distance and speed from the path, checks the trip is mostly within the area around the resident's township, then awards whole points (1 per 3 km walked, 1 per 5 km cycled, max 20 a day)
 
+Solar Builder Plan (monthly payments, each returned over 120 months + 3% a year on the outstanding part; needs `plan.sql`):
+
+- `GET /api/plan`: the plan, payments, totals (paid, returned, extra, still to come) and monthly credits. Monthly payments and credits are brought up to date whenever the plan or `/api/me` is read (there's no background job).
+- `POST /api/plan` with `{ monthlyAmount, siteId }`: starts the plan and takes the first payment
+- `PATCH /api/plan` with `{ monthlyAmount?, status?: 'active' | 'paused' }`
+- `DELETE /api/plan`: stops future payments; earlier payments keep coming back
+- `POST /api/plan/skip-month`: prototype demo tool that moves the plan one month into the past (disabled when `SHOW_TEST_ACCOUNTS=false`)
+
+Plan payments are also written to `contributions` and their credits to `payouts` (linked by `plan_payment_id`), so portfolio totals, the credit ledger and the AI analyst include them. Points: 1 per RM 5, +50 at a 6-month streak, +100 every 12.
+
 AI analyst tools:
 
 - `GET /api/portfolio/summary`
@@ -78,7 +88,7 @@ Errors return `{ error }` with a 4xx status for bad input and 500 for server fau
 
 ## Notes
 
-- Database setup (Supabase SQL Editor): run `schema.txt`, then `seed.sql`, then `green.sql` (Go Green trips). `seed.sql` is generated from the frontend data (same site ids, prices, taken units, demo resident holdings, points and alerts) and wipes all `public.*` tables first. `seed.txt` is the older seed and is superseded.
+- Database setup (Supabase SQL Editor): run `schema.txt`, then `seed.sql`, then `green.sql` (Go Green trips) and `plan.sql` (Solar Builder Plan). `seed.sql` is generated from the frontend data (same site ids, prices, taken units, demo resident holdings, points and alerts) and wipes all `public.*` tables first. `seed.txt` is the older seed and is superseded.
 - Supabase's REST API returns at most 1,000 rows per request by default; `solar_readings` holds one row per site per day, so per-site queries stay under that.
 - This backend maps to the schema you shared (townships/sites/subscriptions/contributions/payouts/rewards/alerts/messages).
 - The Solar Analyst (`src/assistant.js`) is rule-based: it picks the matching tool for the question, answers from live data and labels projections as forecasts. Swapping in an LLM later only needs `answer()` replaced.

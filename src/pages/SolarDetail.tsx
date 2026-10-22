@@ -5,8 +5,8 @@ import { ProjectArt } from '../components/Art'
 import { AreaChart } from '../components/Charts'
 import { Coin, Page, Progress, Rise, Seg, Sheet, useFromAlert } from '../components/ui'
 import { openAlerts } from '../components/AlertsButton'
-import { KINDS, MONTHS, rm, siteById, townshipById } from '../data'
-import { investedOf, monthlyPayout, nextPayoutDate, payoutsReceived, payoutHistory, useStore } from '../store'
+import { KINDS, MONTHS, rm, siteById, townshipById, unitGridCols, unitLabel } from '../data'
+import { capitalReturned, creditAhead, interestReceived, investedOf, nextPayoutDate, payoutHistory, useStore } from '../store'
 
 type Range = '6M' | '1Y' | '3Y' | 'All'
 type Doc = 'tx' | 'schedule' | 'docs' | null
@@ -29,7 +29,7 @@ export default function SolarDetail() {
     let cum = 0
     const pts = [{ label: 'Start', value: invested, tip: sub.since }]
     for (const h of history) {
-      cum += h.amount
+      cum += h.interest
       pts.push({ label: MONTHS[h.month].slice(0, 3), value: invested + cum, tip: `${MONTHS[h.month]} ${h.year}` })
     }
     const take = range === '6M' ? 7 : range === '1Y' ? 13 : range === '3Y' ? 37 : pts.length
@@ -51,7 +51,8 @@ export default function SolarDetail() {
   const meta = KINDS[site.kind]
   const township = townshipById(site.townshipId)
   const invested = investedOf(sub)
-  const earned = payoutsReceived(sub)
+  const earned = interestReceived(sub)
+  const returned = capitalReturned(sub)
   const value = invested + earned
   const first = series[0]?.value ?? invested
   const change = value - first
@@ -103,7 +104,8 @@ export default function SolarDetail() {
             <div>
               <div className="muted small" style={{ fontWeight: 600 }}>Estimated value</div>
               <div className="num" style={{ fontSize: 22, fontWeight: 800 }}>{rm(value, 2)}</div>
-              <div className="row small" style={{ gap: 3, color: 'var(--green)', fontWeight: 700 }}><TrendingUp size={13} /> +{((change / first) * 100).toFixed(1)}% ({rm(change, 0)})</div>
+              <div className="row small" style={{ gap: 3, color: 'var(--green)', fontWeight: 700 }}><TrendingUp size={13} /> +{first ? ((change / first) * 100).toFixed(1) : '0.0'}% ({rm(change, 0)})</div>
+              <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{rm(returned, 2)} of your {rm(invested)} already back</div>
             </div>
             <div style={{ borderLeft: '1px solid var(--line)', paddingLeft: 14 }}>
               <div className="muted small" style={{ fontWeight: 600 }}>Total rewards earned</div>
@@ -155,18 +157,18 @@ export default function SolarDetail() {
             <h2 className="h2" style={{ fontSize: 16 }}>Your {meta.unitName}s</h2>
             <Link to={`/explore?site=${site.id}`} className="pill-link"><Map size={13} />&nbsp;View on map</Link>
           </div>
-          <div className="units" style={{ gridTemplateColumns: `repeat(${site.cols === 2 ? 4 : site.cols}, 1fr)`, marginTop: 12 }}>
+          <div className="units" style={{ gridTemplateColumns: `repeat(${unitGridCols(site)}, 1fr)`, marginTop: 12 }}>
             {Array.from({ length: site.units }, (_, i) => {
               const mine = sub.units.includes(i)
               return (
                 <div key={i} className={`unit ${mine ? 'mine' : site.taken.includes(i) ? 'taken' : ''}`} style={{ height: 34, opacity: mine ? 1 : 0.5 }}>
-                  <span>{mine ? <Leaf size={14} /> : i + 1}</span>
+                  <span>{mine ? <Leaf size={14} /> : unitLabel(site, i)}</span>
                 </div>
               )
             })}
           </div>
           <p className="muted small" style={{ marginTop: 10 }}>
-            You own {meta.unitName}{sub.units.length > 1 ? 's' : ''} #{sub.units.map((u) => u + 1).join(', #')} · {sub.units.length * site.kwpPerUnit} kWp installed capacity
+            You own {meta.unitName}{sub.units.length > 1 ? 's' : ''} {sub.units.map((u) => unitLabel(site, u)).join(', ')} · {sub.units.length * site.kwpPerUnit} kWp installed capacity
           </p>
         </div>
       </Rise>
@@ -194,7 +196,7 @@ export default function SolarDetail() {
             {[
               { icon: Users, v: site.homesPowered ? site.homesPowered.toLocaleString() : '120+', l: site.homesPowered ? 'Homes powered' : 'EV drives / week' },
               { icon: TreePine, v: `${Math.round(site.capacityMW * 370).toLocaleString()} t`, l: 'Lifetime CO₂e saved' },
-              { icon: House, v: String(site.taken.length + sub.units.length), l: 'Co-owners' },
+              { icon: House, v: String(site.taken.length + sub.units.length), l: `${meta.unitName[0].toUpperCase()}${meta.unitName.slice(1)}s taken` },
             ].map((x, i) => (
               <div key={x.l} style={{ paddingLeft: i ? 12 : 0, borderLeft: i ? '1px solid var(--line)' : 'none' }}>
                 <x.icon size={18} color="#E60000" />
@@ -234,7 +236,7 @@ export default function SolarDetail() {
         {doc === 'schedule' && (
           <>
             <h2 className="h2" style={{ fontSize: 19 }}>Credit schedule</h2>
-            <p className="sub" style={{ marginTop: 4 }}>Energy Savings Credits are applied to your TNB bill on the 28th of every month, based on projected energy savings.</p>
+            <p className="sub" style={{ marginTop: 4 }}>Energy Savings Credits are applied to your TNB bill on the 28th of every month. Each one returns 1/120 of what you paid, plus the project’s expected return on the part not yet returned.</p>
             <div className="list" style={{ marginTop: 6 }}>
               {Array.from({ length: 6 }, (_, k) => {
                 const d = new Date(payout.getFullYear(), payout.getMonth() + k, 28)
@@ -242,7 +244,7 @@ export default function SolarDetail() {
                   <div key={k} className="list-row">
                     <span className="ic blue sm"><CalendarDays size={16} /></span>
                     <div className="grow"><div className="title">{d.toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</div><div className="desc">{k === 0 ? 'Next payout' : 'Projected'}</div></div>
-                    <b className="num">{rm(monthlyPayout(sub), 2)}</b>
+                    <b className="num">{rm(creditAhead(sub, k), 2)}</b>
                   </div>
                 )
               })}

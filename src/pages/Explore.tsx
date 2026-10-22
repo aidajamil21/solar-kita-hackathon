@@ -1,14 +1,17 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Check, ChevronDown, Compass, CreditCard, Landmark, LayoutGrid, Leaf, MapPin, Minus, Moon, Plus, Search, Star, Sun, Users, Wallet, X, Zap } from 'lucide-react'
+import { ArrowRight, BookOpen, Check, ChevronDown, Compass, CreditCard, Landmark, LayoutGrid, Leaf, MapPin, Minus, Moon, Plus, Search, Star, Sun, Users, Wallet, X, Zap } from 'lucide-react'
 import { createElement, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ProjectArt, TownPhoto } from '../components/Art'
 import type { UnitState } from '../components/map/Sites'
 import type { MapApi } from '../components/map/TownshipMap'
 import { AlertBack, Coin, Progress, Sheet, SuccessMark, useFromAlert } from '../components/ui'
+import { InvestGuide } from '../components/InvestGuide'
 import { ProjectFacts } from '../components/ProjectFacts'
-import { KINDS, rm, SITES, siteById, STATES, TOWNSHIPS, townshipById, type Site, type SiteKind } from '../data'
+import { KINDS, rm, SITES, siteById, STATES, TOWNSHIPS, townshipById, unitGridCols, unitLabel, type Site, type SiteKind } from '../data'
 import { useStore } from '../store'
+import { Info } from '../components/Info'
+import { HELP } from '../help'
 
 const TownshipMap = lazy(() => import('../components/map/TownshipMap'))
 const Map2D = lazy(() => import('../components/map/Map2D'))
@@ -33,6 +36,7 @@ export default function Explore() {
   const [interacted, setInteracted] = useState(false)
   const [full, setFull] = useState(false)
   const [townOpen, setTownOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const api = useRef<MapApi | null>(null)
   const idleTimer = useRef<number | undefined>(undefined)
@@ -78,7 +82,7 @@ export default function Explore() {
 
   const toggleUnit = useCallback((site: Site, i: number) => {
     const st = unitState(site, i)
-    const label = `${KINDS[site.kind].unitName} ${i + 1}`
+    const label = `${KINDS[site.kind].unitName} ${unitLabel(site, i)}`
     if (st === 'mine') return store.toast(`You already own ${label}`)
     if (st === 'taken') return store.toast(`${label} is already subscribed`)
     setSelection((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i]))
@@ -145,6 +149,8 @@ export default function Explore() {
           <span className="small muted" style={{ fontWeight: 600 }}>{sites.length} sites</span>
           <ChevronDown size={18} />
         </button>
+        <div className="map-row">
+        <button className="guide-btn" onClick={() => setGuideOpen(true)}><BookOpen size={15} /> How to invest?</button>
         <div className="map-mode" role="group" aria-label="Map view">
           {(['3d', '2d'] as const).map((m) => (
             <button key={m} className={mode === m ? 'active' : ''} aria-pressed={mode === m}
@@ -152,6 +158,8 @@ export default function Explore() {
               {m.toUpperCase()}
             </button>
           ))}
+          <Info light={night}>{HELP.mapMode}</Info>
+        </div>
         </div>
         <div className="chips" style={{ marginTop: 4 }}>
           {FILTERS.map((f) => {
@@ -170,10 +178,10 @@ export default function Explore() {
       <AnimatePresence>
         {!selected && (
           <motion.div className="map-ctrl" style={{ top: fromAlert ? 220 : 176 }} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
-            <button aria-label={night ? 'Switch to day' : 'Switch to night'} className={night ? 'on' : ''} onClick={() => setNight((n) => !n)}>
+            <button title={HELP.night} aria-label={night ? 'Switch to day' : 'Switch to night'} className={night ? 'on' : ''} onClick={() => setNight((n) => !n)}>
               {night ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-            {mode === '3d' && <button aria-label="Toggle energy flow" className={flow ? 'on' : ''} onClick={() => { setFlow((f) => !f); store.toast(flow ? 'Energy flow hidden' : 'Showing live energy flow') }}>
+            {mode === '3d' && <button title={HELP.energyFlow} aria-label="Toggle energy flow" className={flow ? 'on' : ''} onClick={() => { setFlow((f) => !f); store.toast(flow ? 'Energy flow hidden' : 'Showing live energy flow') }}>
               <Zap size={18} />
             </button>}
             <div className="stack">
@@ -220,6 +228,18 @@ export default function Explore() {
       </AnimatePresence>
 
       <TownshipPicker open={townOpen} onClose={() => setTownOpen(false)} current={township.id} onPick={switchTown} />
+
+      <Sheet open={guideOpen} onClose={() => setGuideOpen(false)} label="How to invest">
+        {guideOpen && (
+          <InvestGuide
+            township={township.name}
+            kindsHere={new Set(sites.map((s) => s.kind))}
+            onShowKind={(k) => { setSelectedId(null); setFilter(k) }}
+            onChangeTown={() => { setGuideOpen(false); setTownOpen(true) }}
+            onClose={() => setGuideOpen(false)}
+          />
+        )}
+      </Sheet>
 
       {selected && (
         <ConfirmSheet
@@ -342,7 +362,7 @@ function SiteSheet(props: {
 
         <div className="section" style={{ marginTop: 22, scrollMarginTop: 8 }} ref={gridRef}>
           <div className="row between" style={{ marginBottom: 4 }}>
-            <h3 className="h2" style={{ fontSize: 16 }}>Select your {meta.unitName}s</h3>
+            <h3 className="h2" style={{ fontSize: 16 }}>Select your {meta.unitName}s{site.blocks > 1 && <Info>{HELP.blocks}</Info>}</h3>
             <div className="stepper" aria-label="Quick pick">
               <button aria-label="Remove one" onClick={() => props.onQuick(-1)}><Minus size={15} /></button>
               <b>{n}</b>
@@ -350,9 +370,9 @@ function SiteSheet(props: {
             </div>
           </div>
           <p className="muted small" style={{ marginBottom: 12 }}>
-            Tap a unit here or on the map. Each {meta.unitName} is {site.kwpPerUnit} kWp of installed solar.
+            Tap a unit here or on the map. Each {meta.unitName} is a {site.kwpPerUnit} kWp share of the site, about {Math.round(site.kwpPerUnit * 1300).toLocaleString()} kWh a year.<Info size={13}>{HELP.kwp}</Info>
           </p>
-          <div className="units" style={{ gridTemplateColumns: `repeat(${site.cols === 2 ? 4 : site.cols}, 1fr)` }}>
+          <div className="units" style={{ gridTemplateColumns: `repeat(${unitGridCols(site)}, 1fr)` }}>
             {Array.from({ length: site.units }, (_, i) => {
               const st = props.unitState(i)
               return (
@@ -361,10 +381,10 @@ function SiteSheet(props: {
                   whileTap={{ scale: 0.92 }}
                   className={`unit ${st === 'free' ? '' : st}`}
                   aria-pressed={st === 'sel'}
-                  aria-label={`${meta.unitName} ${i + 1}, ${st === 'free' ? 'available' : st === 'sel' ? 'selected' : st === 'mine' ? 'yours' : 'taken'}`}
+                  aria-label={`${meta.unitName} ${unitLabel(site, i)}, ${st === 'free' ? 'available' : st === 'sel' ? 'selected' : st === 'mine' ? 'yours' : 'taken'}`}
                   onClick={() => props.onToggle(i)}
                 >
-                  <span>{st === 'sel' ? <Check size={15} strokeWidth={3} /> : st === 'mine' ? <Leaf size={14} /> : i + 1}</span>
+                  <span>{st === 'sel' ? <Check size={15} strokeWidth={3} /> : st === 'mine' ? <Leaf size={14} /> : unitLabel(site, i)}</span>
                 </motion.button>
               )
             })}
@@ -378,8 +398,8 @@ function SiteSheet(props: {
         </div>
 
         <div className="row" style={{ marginTop: 20, gap: 10 }}>
-          <div className="stat" style={{ flex: 1, padding: 12 }}><span className="ic sm green"><Users size={15} /></span><div><div className="v" style={{ fontSize: 15 }}>{site.homesPowered ? site.homesPowered.toLocaleString() : '120+'}</div><div className="l">{site.homesPowered ? 'Homes powered' : 'EV drives / week'}</div></div></div>
-          <div className="stat" style={{ flex: 1, padding: 12 }}><span className="ic sm"><Zap size={15} /></span><div><div className="v" style={{ fontSize: 15 }}>{site.outputPct}%</div><div className="l">Capacity today</div></div></div>
+          <div className="stat" style={{ flex: 1, padding: 12 }}><span className="ic sm green"><Users size={15} /></span><div><div className="v" style={{ fontSize: 15 }}>{site.homesPowered ? site.homesPowered.toLocaleString() : '120+'}</div><div className="l">{site.homesPowered ? <>Homes powered<Info size={12}>{HELP.homesPowered}</Info></> : 'EV drives / week'}</div></div></div>
+          <div className="stat" style={{ flex: 1, padding: 12 }}><span className="ic sm"><Zap size={15} /></span><div><div className="v" style={{ fontSize: 15 }}>{site.outputPct}%</div><div className="l">Capacity today<Info size={12}>{HELP.capacityToday}</Info></div></div></div>
         </div>
       </div>
 
@@ -512,7 +532,7 @@ function ConfirmSheet({ open, site, units, onClose, onDone }: { open: boolean; s
               <div className="cushion" style={{ width: 62, height: 54, flexShrink: 0 }}><ProjectArt kind={site.kind} /></div>
               <div className="grow">
                 <div style={{ fontWeight: 800 }}>{site.name}</div>
-                <div className="muted small">{meta.label} · {meta.unitName}s #{units.map((u) => u + 1).join(', #')}</div>
+                <div className="muted small">{meta.label} · {meta.unitName}s {units.map((u) => unitLabel(site, u)).join(', ')}</div>
               </div>
             </div>
             <div style={{ borderTop: '1px solid var(--line)', padding: '6px 14px 8px', background: '#FCFCFA' }}>

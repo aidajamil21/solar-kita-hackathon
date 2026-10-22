@@ -76,8 +76,8 @@ export function RealizedCard({ d }: { d: RealizedReturn }) {
       <div className="grid-2" style={{ gap: 6 }}>
         <Metric label="Your contributions" value={rm(d.contributions)} />
         <Metric label="Credited to you" value={rm(d.payouts, 2)} tone="green" />
-        <Metric label="Fees" value={rm(d.fees, 2)} />
-        <Metric label="Earned back so far" value={`${d.realizedReturnPct.toFixed(1)}% (≈${d.annualisedPct.toFixed(1)}% a year)`} />
+        <Metric label="Your money back" value={rm(d.capitalReturned ?? 0, 2)} />
+        <Metric label="Extra earned" value={`${rm(d.extra ?? 0, 2)} (≈${d.annualisedPct.toFixed(1)}% a year)`} tone="green" />
       </div>
     </Shell>
   )

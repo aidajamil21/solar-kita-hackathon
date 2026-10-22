@@ -115,6 +115,92 @@ h1, h2, h3, h4, p { margin: 0; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 
+/* ---------- info "i" buttons ---------- */
+.info-btn { display: inline-grid; place-items: center; vertical-align: middle; margin-left: 5px; border-radius: 50%; color: #9aa0a8; cursor: help; flex-shrink: 0; transition: color 0.15s, background 0.15s; position: relative; top: -1px; }
+.info-btn:hover, .info-btn.on { color: var(--brand); background: var(--brand-soft); }
+.info-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.info-btn.light { color: rgba(255, 255, 255, 0.8); }
+.map-mode .info-btn { align-self: center; margin: 0 5px 0 3px; }
+.info-btn.light:hover, .info-btn.light.on { color: #fff; background: rgba(255, 255, 255, 0.2); }
+.info-pop { position: fixed; z-index: 1000; padding: 10px 12px; border-radius: 12px; background: #1d2127; color: #f3f4f6; font-size: 12.5px; font-weight: 500; line-height: 1.5; letter-spacing: 0; text-transform: none; text-align: left; box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.55); pointer-events: auto; white-space: normal; }
+
+/* ---------- how to invest guide ---------- */
+.map-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.map-row .map-mode { margin: 0; }
+.guide-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px 0 12px; border-radius: 999px; font-size: 12.5px; font-weight: 800; color: #fff;
+  background: linear-gradient(150deg, #ff4a10, #e00000); box-shadow: 0 8px 18px -8px rgba(200, 0, 0, 0.7); transition: transform 0.2s var(--ease); }
+.guide-btn:active { transform: scale(0.96); }
+.guide-title { font-weight: 800; font-size: 26px; letter-spacing: -0.03em; text-transform: uppercase; margin-top: 4px; line-height: 1.05; }
+.guide-title em { font-style: normal; background: linear-gradient(90deg, #f20000, #ff6e00); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.guide-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+.guide-pick button { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 11px 10px 10px; border-radius: 16px; border: 1.5px solid var(--line); background: #fff; text-align: left; transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s var(--ease); }
+.guide-pick button:active { transform: scale(0.97); }
+.guide-pick button.on { border-color: var(--tint); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tint) 16%, transparent); }
+.guide-pick .gi { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: var(--tint); }
+.guide-pick .gn { font-size: 12px; font-weight: 800; line-height: 1.2; }
+.guide-pick .gt { position: absolute; top: 9px; right: 8px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.guide-card { margin-top: 14px; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: #fff; box-shadow: var(--shadow); }
+.guide-hero { position: relative; height: 150px; }
+.guide-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.guide-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(10, 10, 12, 0.72) 100%); }
+.guide-hero-text { position: absolute; left: 16px; right: 16px; bottom: 14px; z-index: 1; color: #fff; }
+.guide-hero-text h3 { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; }
+.guide-body { padding: 16px; }
+.guide-pitch { font-size: 14px; line-height: 1.55; color: var(--ink-2); }
+.guide-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.guide-stats > div { padding: 10px 12px; border-radius: 14px; background: var(--line-2); }
+.guide-stats .l { font-size: 11px; font-weight: 600; color: var(--muted); }
+.guide-stats .v { font-size: 14.5px; font-weight: 800; margin-top: 2px; letter-spacing: -0.01em; }
+.guide-steps { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.guide-steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45; color: var(--ink); }
+.guide-steps li > span { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 800; color: #fff; background: linear-gradient(150deg, #ff6e00, #f20000); }
+.guide-notes { margin-top: 14px; padding: 12px; border-radius: 14px; background: var(--green-soft); display: grid; gap: 7px; }
+.guide-notes > div { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; color: #1d4f39; }
+.guide-notes svg { flex-shrink: 0; margin-top: 1px; color: var(--green); }
+.guide-compare { margin-top: 8px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; font-size: 11.5px; }
+.guide-compare > div, .guide-compare > button { display: grid; grid-template-columns: 1.35fr 1fr 0.9fr 1.1fr 0.8fr; gap: 6px; padding: 9px 10px; width: 100%; text-align: left; align-items: center; }
+.guide-compare > button { border-top: 1px solid var(--line-2); transition: background 0.15s; }
+.guide-compare > button:hover, .guide-compare > button.on { background: var(--brand-soft); }
+.guide-compare .h { background: var(--line-2); font-size: 9.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.guide-compare .n { display: flex; align-items: center; gap: 6px; font-weight: 800; }
+.guide-compare .n svg { flex-shrink: 0; }
+.guide-journey { margin-top: 10px; display: grid; gap: 0; position: relative; }
+.guide-journey > div { display: flex; gap: 12px; align-items: center; padding: 8px 0; position: relative; }
+.guide-journey > div:not(:last-child)::after { content: ''; position: absolute; left: 17px; top: 44px; bottom: -8px; width: 2px; background: repeating-linear-gradient(180deg, #ffc9b8 0 4px, transparent 4px 8px); }
+.guide-journey .ji { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-deep); }
+.guide-journey b { display: block; font-size: 13px; }
+.guide-journey span:not(.ji) { display: block; font-size: 12px; color: var(--muted); }
+.guide-foot { display: flex; align-items: center; gap: 8px; margin-top: 18px; padding: 12px 14px; border-radius: 16px; background: linear-gradient(135deg, #fff1ea, #fff); border: 1px solid #ffd9cc; font-size: 12.5px; color: var(--ink-2); }
+.guide-foot > svg { flex-shrink: 0; color: var(--brand); }
+.guide-foot > span { flex: 1; }
+@media (max-width: 400px) {
+  .guide-compare { font-size: 10.5px; }
+  .guide-compare > div, .guide-compare > button { grid-template-columns: 1.3fr 1fr 0.9fr 1fr 0.8fr; padding: 8px; gap: 4px; }
+}
+
+/* ---------- solar builder plan ---------- */
+.plan-amounts { display: flex; flex-wrap: wrap; gap: 8px; }
+.plan-amounts button { height: 40px; padding: 0 16px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; font-weight: 800; font-size: 13.5px; transition: all 0.2s; }
+.plan-amounts button.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
+.plan-headline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.plan-headline > div { padding: 10px; border-radius: 14px; background: var(--line-2); }
+.plan-headline .l { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+.plan-headline .v { font-size: 15px; font-weight: 800; margin-top: 3px; letter-spacing: -0.02em; }
+.plan-headline .s { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.plan-table { margin-top: 8px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; font-size: 12.5px; }
+.plan-table > div { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1.2fr; gap: 6px; padding: 9px 12px; }
+.plan-table > div + div { border-top: 1px solid var(--line-2); }
+.plan-table .h { background: var(--line-2); font-size: 10.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.plan-farm { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff; font-size: 13px; transition: border-color 0.2s, background 0.2s; }
+.plan-farm.on { border-color: var(--brand); background: var(--brand-soft); }
+.plan-bars { display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-top: 10px; }
+.plan-bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; min-width: 0; }
+.plan-bar i { width: 100%; max-width: 34px; border-radius: 6px 6px 3px 3px; background: linear-gradient(180deg, #ff6e00, #f20000); }
+.plan-bar.upcoming i { background: repeating-linear-gradient(45deg, #ffd2c2 0 4px, #ffe6dc 4px 8px); }
+.plan-bar .v { font-size: 9.5px; font-weight: 700; color: var(--ink-2); }
+.plan-bar .m { font-size: 9px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 420px) { .plan-headline { grid-template-columns: 1fr 1fr; } .plan-table > div { font-size: 11.5px; padding: 8px 10px; } }
+
 /* ---------- go green ---------- */
 .green-go {
   width: 148px; height: 148px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;

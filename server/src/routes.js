@@ -1,6 +1,9 @@
 import { Router } from 'express'
 import { checkIn, markAllAlertsRead, redeem, resetDemo, subscribe, updateMe } from './actions.js'
 import { GREEN, logTrip } from './green.js'
+import { planSummary, skipMonth, startPlan, stopPlan, syncPlan, updatePlan } from './plan.js'
+import { syncBlockCredits } from './credits.js'
+import { config } from './config.js'
 import { answer } from './assistant.js'
 import { run, supabase } from './db.js'
 import { alertsFor, catalogue, environmentalImpact, me, portfolioSummary, projectedScenarios, projectPerformance, realizedReturn, tripsOf } from './services.js'
@@ -22,7 +25,11 @@ router.get('/health', h(async (_req, res) => {
 /* ---------- catalogue + the signed-in resident ---------- */
 
 router.get('/catalogue', h(async (req, res) => res.json(await catalogue(req.userId))))
-router.get('/me', h(async (req, res) => res.json(await me(req.userId))))
+router.get('/me', h(async (req, res) => {
+  await syncPlan(req.userId).catch((err) => console.error('plan sync failed', err))
+  await syncBlockCredits(req.userId).catch((err) => console.error('credit sync failed', err))
+  res.json(await me(req.userId))
+}))
 router.patch('/me', h(async (req, res) => res.json(await updateMe(req.userId, req.body))))
 
 router.post('/subscriptions', h(async (req, res) => {
@@ -32,6 +39,27 @@ router.post('/redemptions', h(async (req, res) => {
   res.status(201).json(await redeem(req.userId, String(req.body?.rewardId ?? ''), req.body?.code))
 }))
 router.post('/checkins', h(async (req, res) => res.status(201).json(await checkIn(req.userId))))
+/* Solar Builder Plan: monthly payments returned over 10 years + 3% a year */
+router.get('/plan', h(async (req, res) => res.json(await planSummary(req.userId))))
+router.post('/plan', h(async (req, res) => {
+  await startPlan(req.userId, req.body)
+  res.status(201).json({ ...(await planSummary(req.userId)), me: await me(req.userId) })
+}))
+router.patch('/plan', h(async (req, res) => {
+  await updatePlan(req.userId, req.body)
+  res.json({ ...(await planSummary(req.userId)), me: await me(req.userId) })
+}))
+router.delete('/plan', h(async (req, res) => {
+  await stopPlan(req.userId)
+  res.json({ ...(await planSummary(req.userId)), me: await me(req.userId) })
+}))
+// prototype demo tool: pretend a month has passed (hidden when SHOW_TEST_ACCOUNTS=false)
+router.post('/plan/skip-month', h(async (req, res) => {
+  if (!config.showTestAccounts) throw new HttpError(404, 'Not available')
+  await skipMonth(req.userId)
+  res.json({ ...(await planSummary(req.userId)), me: await me(req.userId) })
+}))
+
 /* Go Green: walk or cycle in your township to earn points */
 router.get('/green/rules', (_req, res) => res.json(GREEN))
 router.get('/green/trips', h(async (req, res) => res.json(await tripsOf(req.userId, Math.min(100, Number(req.query.limit) || 30)))))

@@ -153,11 +153,34 @@ function Glow({ selected, dimmed, size = 8.2 }: { selected: boolean; dimmed: boo
   )
 }
 
+/** one row / roof / bay, split side by side into its blocks (1a, 1b, ...); each block is a pickable unit */
+function BlockRow({ v, row, w, d, tilt, legs }: { v: SiteView; row: number; w: number; d: number; tilt?: number; legs?: boolean }) {
+  const n = Math.max(1, v.site.blocks)
+  const pick = (i: number) => () => (v.selected ? v.onUnit(i) : v.onSelect())
+  if (n === 1) return <Unit w={w} d={d} tilt={tilt} legs={legs} state={v.unitState(row)} onClick={pick(row)} />
+  const gap = Math.min(0.06, w * 0.04)
+  const bw = (w - gap * (n - 1)) / n
+  return (
+    <>
+      {Array.from({ length: n }, (_, b) => {
+        const i = row * n + b
+        return (
+          <group key={b} position={[-w / 2 + bw / 2 + b * (bw + gap), 0, 0]}>
+            <Unit w={bw} d={d} tilt={tilt} legs={legs} state={v.unitState(i)} onClick={pick(i)} />
+          </group>
+        )
+      })}
+    </>
+  )
+}
+const rowsOf = (site: Site) => Math.ceil(site.units / Math.max(1, site.blocks))
+
 /* ---------- utility-scale farm ---------- */
 function Farm({ v }: { v: SiteView }) {
   const { site } = v
   const C = site.cols
-  const R = Math.ceil(site.units / C)
+  const rows = rowsOf(site)
+  const R = Math.ceil(rows / C)
   const gap = 0.4
   const span = 7.0
   const w = (span - (C - 1) * gap) / C
@@ -178,11 +201,11 @@ function Farm({ v }: { v: SiteView }) {
         <boxGeometry args={[7.4, 0.02, 0.55]} />
         <meshStandardMaterial color="#E4E1D8" />
       </mesh>
-      {Array.from({ length: site.units }, (_, i) => {
+      {Array.from({ length: rows }, (_, i) => {
         const col = i % C, row = Math.floor(i / C)
         return (
           <group key={i} position={[-span / 2 + w / 2 + col * (w + gap), 0.1, -3.4 + spacing / 2 + row * spacing]}>
-            <Unit w={w} d={d} state={v.unitState(i)} onClick={() => (v.selected ? v.onUnit(i) : v.onSelect())} />
+            <BlockRow v={v} row={i} w={w} d={d} />
           </group>
         )
       })}
@@ -229,7 +252,7 @@ function Rooftops({ v }: { v: SiteView }) {
             <meshStandardMaterial color="#B5B2AB" />
           </mesh>
           <group position={[0, H + RH * 0.5 + 0.03, (D / 2 + 0.11) * 0.5]}>
-            <Unit w={W * 0.82} d={0.95} tilt={alpha} legs={false} state={v.unitState(i)} onClick={() => (v.selected ? v.onUnit(i) : v.onSelect())} />
+            <BlockRow v={v} row={i} w={W * 0.82} d={0.95} tilt={alpha} legs={false} />
           </group>
           <mesh position={[-0.45, 0.62, D / 2 + 0.45]} castShadow><boxGeometry args={[0.95, 0.04, 0.8]} /><meshStandardMaterial color="#DAD8D2" /></mesh>
         </group>
@@ -241,7 +264,7 @@ function Rooftops({ v }: { v: SiteView }) {
 /* ---------- EV hub: building with PV roof + carport ---------- */
 function EvHub({ v }: { v: SiteView }) {
   const C = 4
-  const n = Math.min(v.site.units, 8)
+  const n = Math.min(rowsOf(v.site), 8)
   const led = useMemo(() => new THREE.Color('#3BE0A0').multiplyScalar(2), [])
   return (
     <group>
@@ -265,7 +288,7 @@ function EvHub({ v }: { v: SiteView }) {
         const col = i % C, row = Math.floor(i / C)
         return (
           <group key={i} position={[-2.7 + col * 1.8, 1.87, -3.0 + row * 1.5]}>
-            <Unit w={1.6} d={1.1} tilt={0.18} legs={false} state={v.unitState(i)} onClick={() => (v.selected ? v.onUnit(i) : v.onSelect())} />
+            <BlockRow v={v} row={i} w={1.6} d={1.1} tilt={0.18} legs={false} />
           </group>
         )
       })}
@@ -312,7 +335,7 @@ function RealRooftops({ v, houses, cx, cz }: { v: SiteView; houses: HouseRect[];
               <meshStandardMaterial color="#B5B2AB" />
             </mesh>
             <group position={[0, hh.h + hh.roofH * 0.5 + 0.02, (hh.d / 2 + 0.05) * 0.5]}>
-              <Unit w={hh.w * 0.8} d={slant * 0.7} tilt={alpha} legs={false} state={v.unitState(i)} onClick={() => (v.selected ? v.onUnit(i) : v.onSelect())} />
+              <BlockRow v={v} row={i} w={hh.w * 0.8} d={slant * 0.7} tilt={alpha} legs={false} />
             </group>
           </group>
         )

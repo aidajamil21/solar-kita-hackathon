@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { run, rpc, supabase } from './db.js'
 import { ensureProfile, me } from './services.js'
-import { dueDate, HttpError, monthlyCredit, monthsUntilNow, monthStart, MONTHS_LONG, rm, todayKL } from './utils.js'
-
-const monthKey = (d) => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+import { syncBlockCredits } from './credits.js'
+import { dueDate, HttpError, monthStart, MONTHS_LONG, rm, todayKL } from './utils.js'
 
 async function siteOrThrow(siteId) {
   const site = (await run(supabase.from('sites').select('*').eq('id', siteId).limit(1)))[0]
@@ -14,21 +13,6 @@ async function siteOrThrow(siteId) {
 async function notify(userId, alert) {
   const [row] = await run(supabase.from('alerts').insert({ user_id: userId, detection: 'database_event', ...alert }).select('id'))
   await run(supabase.from('notification_deliveries').insert({ alert_id: row.id, channel: 'in_app', status: 'sent', attempts: 1, sent_at: new Date().toISOString() }))
-}
-
-/** (re)write this month's pending credit for a subscription from its current unit count */
-async function refreshPendingCredit(sub, site, units, userId) {
-  const month = new Date(monthStart() + 'T00:00:00Z')
-  await run(supabase.from('payouts').upsert({
-    user_id: userId,
-    site_id: site.id,
-    subscription_id: sub.id,
-    amount: monthlyCredit(units, site, month),
-    status: 'pending',
-    due_at: dueDate(month).toISOString(),
-    paid_at: null,
-    external_reference: `SK-PAY-${sub.id}-${monthKey(month)}`,
-  }, { onConflict: 'external_reference' }))
 }
 
 /**
@@ -75,8 +59,8 @@ export async function subscribe(userId, siteId, rawUnits) {
     p_idempotency_key: `subscribe:${sub.id}:${units.join('-')}`, p_metadata: { site_id: siteId, units },
   })
 
-  const allUnits = await run(supabase.from('subscription_units').select('unit_index').eq('subscription_id', sub.id))
-  await refreshPendingCredit(sub, site, allUnits.length, userId)
+  // this purchase's first credit (next month) and anything else that has fallen due
+  await syncBlockCredits(userId)
 
   await notify(userId, {
     type: 'contribution_recorded', severity: 'success', title: 'Contribution recorded', site_id: siteId,
@@ -165,8 +149,8 @@ export async function updateMe(userId, body) {
 
 // the resident's starting state; mirrors the demo resident in seed.sql
 const DEMO_HOLDINGS = [
-  { siteId: 'elmina-subscription', units: [3], since: '2024-01-01' },
-  { siteId: 'elmina-rooftop', units: [0], since: '2024-03-01' },
+  { siteId: 'elmina-subscription', units: [12, 13, 14, 15], since: '2024-01-01' },
+  { siteId: 'elmina-rooftop', units: [0, 1], since: '2024-03-01' },
 ]
 
 /** put this resident's personal data back to the seeded demo state (catalogue and neighbours untouched) */
@@ -179,6 +163,7 @@ export async function resetDemo(userId) {
   // 1. clear personal records (children before parents)
   await run(supabase.from('alerts').delete().eq('user_id', userId))
   await supabase.from('green_trips').delete().eq('user_id', userId) // ignore if green.sql hasn't been run
+  await supabase.from('builder_plans').delete().eq('user_id', userId) // payments + their credits cascade; ignore if plan.sql hasn't been run
   for (const table of ['redemptions', 'daily_checkins', 'point_ledger', 'payouts', 'contributions']) {
     await run(supabase.from(table).delete().eq('user_id', userId))
   }
@@ -200,36 +185,23 @@ export async function resetDemo(userId) {
     subs.push({ ...sub, units: h.units })
   }
 
-  const thisMonth = monthStart()
-  const payouts = []
-  const contributions = []
-  for (const s of subs) {
-    const site = sites.get(s.site_id)
+  const contributions = subs.map((s) => {
     const since = Date.parse(s.since_month)
-    contributions.push({
-      user_id: userId, site_id: s.site_id, subscription_id: s.id, amount: s.units.length * Number(site.price_per_unit), status: 'completed',
+    return {
+      user_id: userId, site_id: s.site_id, subscription_id: s.id, amount: s.units.length * Number(sites.get(s.site_id).price_per_unit), status: 'completed',
       external_reference: `SK-CON-${s.id}`, contributed_at: new Date(since + D + 10 * H).toISOString(), settled_at: new Date(since + 2 * D + 10 * H).toISOString(),
-    })
-    for (const month of monthsUntilNow(s.since_month)) {
-      const done = monthStart(month) < thisMonth
-      payouts.push({
-        user_id: userId, site_id: s.site_id, subscription_id: s.id,
-        amount: monthlyCredit(s.units.length, site, month),
-        status: done ? 'completed' : 'pending',
-        due_at: dueDate(month).toISOString(),
-        paid_at: done ? dueDate(month).toISOString() : null,
-        external_reference: `SK-PAY-${s.id}-${monthKey(month)}`,
-      })
     }
-  }
+  })
+  if (contributions.length) await run(supabase.from('contributions').insert(contributions))
+  // every monthly credit since purchase (your money back over 10 years + the project's return)
+  await syncBlockCredits(userId)
+  const payouts = await run(supabase.from('payouts').select('id, subscription_id, amount, due_at').eq('user_id', userId))
   // the rooftop credit three months ago was paid two days late (see the alert below)
   const now = new Date()
   const lateMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 3, 1))
   const rooftop = subs.find((s) => s.site_id === 'elmina-rooftop')
-  const late = payouts.find((p) => rooftop && p.subscription_id === rooftop.id && p.due_at === dueDate(lateMonth).toISOString())
-  if (late) late.paid_at = new Date(Date.parse(late.due_at) + 2 * D).toISOString()
-  if (contributions.length) await run(supabase.from('contributions').insert(contributions))
-  if (payouts.length) await run(supabase.from('payouts').insert(payouts))
+  const late = payouts.find((p) => rooftop && p.subscription_id === rooftop.id && new Date(p.due_at).getTime() === dueDate(lateMonth).getTime())
+  if (late) await run(supabase.from('payouts').update({ paid_at: new Date(Date.parse(late.due_at) + 2 * D).toISOString() }).eq('id', late.id))
 
   // 3. points: subscriptions + the app's sample activity; balance = 2,050 earned - 800 redeemed
   const ledger = subs.map((s) => ({
@@ -265,8 +237,9 @@ export async function resetDemo(userId) {
 
   // 4. the eight sample notifications, with amounts and months from the rows above
   const lastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
-  const lastMonthCredit = payouts.filter((p) => p.due_at === dueDate(lastMonth).toISOString()).reduce((a, p) => a + p.amount, 0)
+  const lastMonthCredit = payouts.filter((p) => new Date(p.due_at).getTime() === dueDate(lastMonth).getTime()).reduce((a, p) => a + Number(p.amount), 0)
   const grid = await run(supabase.from('subscription_units').select('unit_index').eq('site_id', 'elmina-investment'))
+  const gridTotal = (await run(supabase.from('sites').select('total_units').eq('id', 'elmina-investment').limit(1)))[0]?.total_units ?? 1
   const incidents = new Map((await run(supabase.from('alert_incidents').select('id, alert_type, site_id'))).map((i) => [`${i.alert_type}:${i.site_id}`, i.id]))
 
   const alerts = [
@@ -275,7 +248,7 @@ export async function resetDemo(userId) {
     { type: 'payout_completed', severity: 'success', title: 'Energy Savings Credit applied', site_id: null, detection: 'database_event', created_at: ago(26 * H),
       body: `Your ${MONTHS_LONG[lastMonth.getUTCMonth()]} credit of ${rm(lastMonthCredit)} was applied to your TNB bill (account ••4821).` },
     { type: 'funding_milestone', severity: 'info', title: 'Funding milestone', site_id: 'elmina-investment', detection: 'scheduled_check', created_at: ago(50 * H),
-      body: `Elmina Grid Array is ${Math.round((grid.length / 18) * 100)}% funded (${grid.length} of 18 array blocks). Subscriptions close in 14 days.` },
+      body: `Elmina Grid Array is ${Math.round((grid.length / gridTotal) * 100)}% funded (${grid.length} of ${gridTotal} array blocks). Subscriptions close in 14 days.` },
     { type: 'project_report', severity: 'info', title: 'New project report', site_id: 'elmina-subscription', detection: 'database_event', created_at: ago(74 * H),
       body: `The ${MONTHS_LONG[lastMonth.getUTCMonth()]} generation report for Elmina Sunfield is now available.`, read: true },
     { type: 'rewards_milestone', severity: 'success', title: 'Rewards milestone', site_id: null, detection: 'database_event', created_at: ago(120 * H),

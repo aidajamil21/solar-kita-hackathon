@@ -69,7 +69,7 @@ export async function answer(userId, question) {
       `- You’ve **received ${rm(p.totalPayoutsReceived)} in Energy Savings Credits** on your TNB bill so far.`,
       p.outstandingPayouts > 0 ? `- **${rm(p.outstandingPayouts)}** is booked but not yet paid.` : '- There are **no credits on the way** right now.',
     ]
-    let content = `Here’s your portfolio based on **verified ledger data**:\n\n${lines.join('\n')}\n\nThat means you’ve **earned back ${pct(r.realizedReturnPct)}**${first ? ` since ${MONTHS_LONG[first.getUTCMonth()]} ${first.getUTCFullYear()}` : ''} (about ${pct(r.annualisedPct)} a year).`
+    let content = `Here’s your portfolio based on **verified ledger data**:\n\n${lines.join('\n')}\n\nOf what’s come back, **${rm(r.capitalReturned)} is your own money returned** and **${rm(r.extra)} is extra** earned${first ? ` since ${MONTHS_LONG[first.getUTCMonth()]} ${first.getUTCFullYear()}` : ''} (about ${pct(r.annualisedPct)} a year on the money still out). The rest of what you paid keeps coming back monthly over 10 years.`
     if (p.nextPayout) content += ` Your next credit is estimated at ${rm(p.nextPayout.estimatedAmount)} on ${fmtDate(p.nextPayout.date)}. That figure is an estimate, not a guarantee.`
     return {
       content,
@@ -87,7 +87,7 @@ export async function answer(userId, question) {
     const credits = r.cashFlows.filter((c) => c.type === 'payout')
     const last = credits[credits.length - 1]
     return {
-      content: `You’ve received **${rm(r.payouts)}** in Energy Savings Credits against **${rm(r.contributions, 0)}** contributed: a **${pct(r.realizedReturnPct)} realised return** so far, or about **${pct(r.annualisedPct)} a year**.\n\nThese are recorded amounts from the credit ledger (${credits.length} credits${last ? `, the latest on ${fmtDate(last.date)}` : ''}), not projections.`,
+      content: `You’ve received **${rm(r.payouts)}** in Energy Savings Credits so far:\n\n- **${rm(r.capitalReturned)}** is your own money coming back (of ${rm(r.contributions, 0)} paid in, returned over 10 years).\n- **${rm(r.extra)}** is extra on top, about **${pct(r.annualisedPct)} a year** on the money still out.\n\nThese are recorded amounts from the credit ledger (${credits.length} credits${last ? `, the latest on ${fmtDate(last.date)}` : ''}), not projections.`,
       toolCalls: [{ name: 'calculate_realized_return' }],
       attachments: [{ kind: 'realized', data: r }],
       suggestions: ['Compare RM 1,000 over 3 vs 5 years', 'How is my portfolio doing?'],
@@ -106,8 +106,9 @@ export async function answer(userId, question) {
     const sets = years.map((y) => projectedScenarios(amount, y, range))
     const main = sets[sets.length - 1]
     const span = (s) => `${rm(s.scenarios[0].totalPayouts, 0)} to ${rm(s.scenarios[2].totalPayouts, 0)}`
-    let content = `These are **projections, not actual results**. Over ${main.years} years, ${rm(amount, 0)}${site ? ` in ${site.name}` : ''} could return roughly **${span(main)}** in total Energy Savings Credits, depending on sunshine and tariffs.`
-    if (sets.length > 1) content += ` Over ${sets.slice(0, -1).map((s) => `${s.years} years, that range is about ${span(s)}`).join('; ')}.`
+    const back = (s) => rm(s.scenarios[0].moneyBack, 0)
+    let content = `These are **projections, not actual results**. Your ${rm(amount, 0)}${site ? ` in ${site.name}` : ''} comes back to you over 10 years. Over ${main.years} years, **${back(main)} of it is back** and you’d earn roughly **${span(main)} extra**, depending on sunshine and tariffs.`
+    if (sets.length > 1) content += ` Over ${sets.slice(0, -1).map((s) => `${s.years} years: ${back(s)} back plus about ${span(s)} extra`).join('; ')}.`
     content += '\n\nThe assumptions and main risks are listed below. No future payout is guaranteed.'
     return {
       content,

@@ -1,4 +1,6 @@
 import { all, run, supabase } from './db.js'
+import { returnedSoFar } from './credits.js'
+import { planHoldings } from './plan.js'
 import { clamp, HttpError, MONTHS, nowMeta, toMonthLabel } from './utils.js'
 
 // Queries go through the Supabase REST API, which can't run raw SQL joins or sums,
@@ -61,6 +63,7 @@ export async function catalogue(userId) {
       kwpPerUnit: Number(s.kwp_per_unit),
       units: s.total_units,
       cols: s.grid_cols ?? 1,
+      blocks: s.blocks_per_row ?? 1,
       taken: (taken.get(s.id) ?? []).sort((a, b) => a - b),
       capacityMW: Number(s.capacity_mw),
       outputPct: Number(s.output_pct ?? 0),
@@ -162,12 +165,13 @@ export async function me(userId) {
 /* ---------- AI analyst tools (also served as REST endpoints) ---------- */
 
 export async function portfolioSummary(userId) {
-  const [sites, townships, subs, payouts, contributions] = await Promise.all([
+  const [sites, townships, subs, payouts, contributions, plans] = await Promise.all([
     sitesById(),
     run(supabase.from('townships').select('id, name')).then(byId),
     holdingsOf(userId, ['active', 'pending', 'cancelled']),
     all(() => supabase.from('payouts').select('id, subscription_id, amount, status, due_at').eq('user_id', userId).order('id')),
     run(supabase.from('contributions').select('subscription_id, amount').eq('user_id', userId).eq('status', 'completed')),
+    planHoldings(userId).catch(() => []),
   ])
 
   const paidBySub = new Map()
@@ -205,6 +209,20 @@ export async function portfolioSummary(userId) {
       status: s.status === 'cancelled' ? 'closed' : s.status,
     }
   })
+  // Solar Builder Plan payments and the credits they've returned so far
+  for (const h of plans) {
+    const site = sites.get(h.plan.site_id)
+    holdings.push({
+      projectId: h.plan.site_id,
+      projectName: `Solar Builder Plan · ${site?.name ?? h.plan.site_id}`,
+      kind: site?.kind,
+      township: townships.get(site?.township_id)?.name ?? '',
+      units: h.payments,
+      contributed: h.paid,
+      payoutsReceived: h.received,
+      status: h.plan.status === 'active' ? 'active' : h.plan.status === 'paused' ? 'pending' : 'closed',
+    })
+  }
 
   return {
     ...nowMeta('verified', 'Supabase contributions + credit ledger'),
@@ -226,50 +244,67 @@ export async function realizedReturn(userId) {
   const payoutSum = payouts.reduce((acc, r) => acc + Number(r.amount), 0)
   const fees = 0
 
+  // credits are part your own money coming back, part extra; split them by the 120-month schedule
+  let capitalReturned = 0
+  let exposure = 0
+  for (const c of contributions) {
+    const r = returnedSoFar(c.amount, c.contributed_at)
+    capitalReturned += r.capital
+    exposure += r.exposure
+  }
+  capitalReturned = Math.min(capitalReturned, payoutSum)
+  const extra = Math.max(0, payoutSum - capitalReturned - fees)
+
   const cashFlows = [
     ...contributions.map((r) => ({ date: new Date(r.contributed_at).toISOString(), type: 'contribution', amount: Number(r.amount), projectId: r.site_id })),
     ...payouts.map((r) => ({ date: new Date(r.paid_at ?? r.created_at).toISOString(), type: 'payout', amount: Number(r.amount), projectId: r.site_id })),
   ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-  const realizedReturnPct = contributionSum > 0 ? ((payoutSum - fees) / contributionSum) * 100 : 0
-  const firstDate = cashFlows[0] ? new Date(cashFlows[0].date).getTime() : Date.now()
-  const years = Math.max((Date.now() - firstDate) / (1000 * 60 * 60 * 24 * 365.25), 1 / 12)
-  const annualisedPct = contributionSum > 0 ? (Math.pow(1 + (payoutSum - fees) / contributionSum, 1 / years) - 1) * 100 : 0
 
   return {
     ...nowMeta('verified', 'Supabase contributions + credit ledger'),
     contributions: round2(contributionSum),
     payouts: round2(payoutSum),
     fees,
-    realizedReturnPct: round2(realizedReturnPct),
-    annualisedPct: round2(annualisedPct),
+    capitalReturned: round2(capitalReturned),
+    extra: round2(extra),
+    /** extra earned so far, as a share of everything paid in */
+    realizedReturnPct: contributionSum > 0 ? round2((extra / contributionSum) * 100) : 0,
+    /** extra per year on the money still out (what the 2-3% is measured on) */
+    annualisedPct: exposure > 0 ? round2((extra / exposure) * 100) : 0,
     cashFlows,
   }
 }
 
-/** simple (non-compounding) projection; `range` = [low, mid, high] annual % */
-export function projectedScenarios(amount, years, range = [3.5, 5, 6.5]) {
+/**
+ * Projection for a one-off amount: it comes back over 10 years (1/120 a month), plus `range`
+ * ([low, mid, high] % a year) on the part not yet returned. totalPayouts = the extra earned.
+ */
+export function projectedScenarios(amount, years, range = [2, 2.5, 3]) {
   if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(years) || years <= 0) {
     throw new HttpError(400, 'Invalid amount or years')
   }
   const names = ['Conservative', 'Base', 'Optimistic']
+  const months = Math.min(120, Math.round(years * 12))
+  const cap = amount / 120
   return {
-    ...nowMeta('forecast', 'Scenario model v1'),
+    ...nowMeta('forecast', 'Scenario model v2 (money back over 10 years)'),
     amount,
     years,
     scenarios: range.map((pct, i) => {
-      const totalPayouts = round2(amount * (pct / 100) * years)
-      return { name: names[i], annualReturnPct: pct, totalPayouts, endValue: round2(amount + totalPayouts) }
+      let extra = 0
+      for (let k = 1; k <= months; k++) extra += ((amount - cap * (k - 1)) * pct) / 100 / 12
+      const totalPayouts = round2(extra)
+      return { name: names[i], annualReturnPct: pct, totalPayouts, endValue: round2(amount + totalPayouts), moneyBack: round2(cap * months) }
     }),
     assumptions: [
-      'Credits come from energy savings and are not compounded.',
+      'Your money comes back in equal monthly parts over 10 years.',
+      'The return is earned on the part not yet returned, so it shrinks as your money comes back.',
       'Output follows the long-run Klang Valley monthly sunshine pattern.',
-      'Panels degrade about 0.5% a year.',
     ],
     risks: [
-      'Cloudy months or outages reduce credits.',
+      'Cloudy months or outages reduce the return.',
       'Tariff or regulatory changes.',
-      'Contributions are not capital-guaranteed.',
+      'Returns are estimates and not guaranteed.',
     ],
   }
 }

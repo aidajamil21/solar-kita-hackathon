@@ -8,6 +8,8 @@ import { KINDS, levelFor, SITES, TOWNSHIPS, townshipById } from '../data'
 import { InitiativeStrip, ProjectFacts } from '../components/ProjectFacts'
 import { useStore } from '../store'
 import { asset } from '../asset'
+import { Info } from '../components/Info'
+import { HELP } from '../help'
 
 export default function Home() {
   const store = useStore()
@@ -122,7 +124,7 @@ export default function Home() {
           <div className="row" style={{ alignItems: 'flex-start' }}>
             <span className="ic lg solid"><Star size={24} fill="#fff" /></span>
             <div className="grow">
-              <div className="muted small" style={{ fontWeight: 600 }}>Your Community Energy Points</div>
+              <div className="muted small" style={{ fontWeight: 600 }}>Your Community Energy Points<Info size={13}>{HELP.pointsBalance}</Info></div>
               <div className="row" style={{ gap: 6, alignItems: 'baseline' }}>
                 <span style={{ fontSize: 28, fontWeight: 800 }}><Count value={store.points} /></span>
                 <span style={{ fontWeight: 600, color: 'var(--ink-2)' }}>points</span>
@@ -135,7 +137,7 @@ export default function Home() {
               <Progress value={lvl.progress} />
               <div className="row between" style={{ marginTop: 7, fontSize: 11.5 }}>
                 <span className="muted"><b style={{ color: 'var(--ink)' }}>{(lvl.next.min - store.lifetime).toLocaleString()}</b> points to next reward</span>
-                <span className="muted">Level {lvl.cur.level} · {lvl.cur.name}</span>
+                <span className="muted">Level {lvl.cur.level} · {lvl.cur.name}<Info size={12}>{HELP.level}</Info></span>
               </div>
             </div>
           )}

@@ -1,28 +1,55 @@
 import { motion } from 'framer-motion'
-import { ArrowDownLeft, CalendarDays, ChevronRight, Coins, Leaf, MapPin, Plus, Star, TrendingUp } from 'lucide-react'
-import { createElement } from 'react'
+import { ArrowDownLeft, CalendarDays, ChevronRight, Coins, Leaf, MapPin, PiggyBank, Plus, Star, TrendingUp } from 'lucide-react'
+import { createElement, useEffect, useState } from 'react'
+import { backendApi, type PlanSummary } from '../api/backend'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProjectArt } from '../components/Art'
 import { AreaChart } from '../components/Charts'
 import { Count, Hero, Page, Progress, Rise } from '../components/ui'
 import { KINDS, MONTHS, rm, siteById, townshipById } from '../data'
-import { combinedPayouts, investedOf, nextPayoutDate, payoutsReceived, useStore } from '../store'
+import { combinedPayouts, interestReceived, investedOf, nextPayoutDate, useStore } from '../store'
 import { asset } from '../asset'
+import { Info } from '../components/Info'
+import { HELP } from '../help'
+
+/** the Solar Builder Plan at a glance (or an invitation to start one) */
+function PlanCard() {
+  const store = useStore()
+  const [plan, setPlan] = useState<PlanSummary | null>(null)
+  useEffect(() => { if (store.online) backendApi.getPlan().then(setPlan).catch(() => {}) }, [store.online])
+  const p = plan?.plan && plan.plan.status !== 'cancelled' ? plan.plan : null
+  const t = plan?.totals
+  return (
+    <Link to="/plan" className="card pad row" style={{ gap: 14, background: 'linear-gradient(135deg, #fff1ea 0%, #ffffff 70%)' }}>
+      <span className="ic lg"><PiggyBank size={22} /></span>
+      <div className="grow">
+        <div style={{ fontWeight: 800, fontSize: 15 }}>Solar Builder Plan</div>
+        <div className="muted small" style={{ marginTop: 2 }}>
+          {p && t
+            ? <>{rm(p.monthlyAmount)} a month{p.status === 'paused' ? ' (paused)' : ''} · <b style={{ color: 'var(--ink)' }}>{rm(t.received, 2)}</b> back so far{t.nextCredit ? <>, next {rm(t.nextCredit.amount, 2)}</> : null}</>
+            : 'Put in a fixed amount each month. It all comes back over 10 years, plus 3% a year and points.'}
+        </div>
+      </div>
+      <ChevronRight size={18} className="muted" />
+    </Link>
+  )
+}
 
 export default function Solar() {
   const store = useStore()
   const nav = useNavigate()
   const invested = store.subs.reduce((a, s) => a + investedOf(s), 0)
-  const earned = store.subs.reduce((a, s) => a + payoutsReceived(s), 0)
+  // extra earned on top of your own money coming back
+  const earned = store.subs.reduce((a, s) => a + interestReceived(s), 0)
   const payouts = combinedPayouts(store.subs, 12)
   const payout = nextPayoutDate()
   const points = store.subs.reduce((a, s) => a + s.units.length * (siteById(s.siteId)?.pointsPerUnit ?? 0), 0)
   const co2 = store.subs.reduce((a, s) => a + s.units.length * (siteById(s.siteId)?.co2PerUnit ?? 0), 0)
-  // estimated value over the last 12 months: entry amount so far + payouts received so far
-  const before = earned - payouts.reduce((a, p) => a + p.amount, 0)
+  // estimated value over the last 12 months: entry amount so far + extra earned so far
+  const before = earned - payouts.reduce((a, p) => a + p.interest, 0)
   let cum = before
   const valueSeries = payouts.map((p) => {
-    cum += p.amount
+    cum += p.interest
     const entry = store.subs.reduce((a, s) => { const [y, m] = s.since.split('-').map(Number); return y * 12 + m - 1 <= p.idx ? a + investedOf(s) : a }, 0)
     return { label: MONTHS[p.month].slice(0, 3), value: entry + cum, tip: `${MONTHS[p.month]} ${p.year}` }
   })
@@ -35,10 +62,10 @@ export default function Solar() {
         <div className="card raised pad">
           <div className="row between" style={{ alignItems: 'flex-start' }}>
             <div>
-              <div className="muted small" style={{ fontWeight: 600 }}>Estimated portfolio value</div>
+              <div className="muted small" style={{ fontWeight: 600 }}>Estimated portfolio value<Info size={13}>{HELP.portfolioValue}</Info></div>
               <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.15, whiteSpace: 'nowrap' }}><Count value={invested + earned} decimals={2} prefix="RM " /></div>
               <div className="row small" style={{ gap: 4, marginTop: 4, color: 'var(--green)', fontWeight: 700 }}>
-                <TrendingUp size={14} /> +{((earned / invested) * 100).toFixed(1)}% on {rm(invested)} entry
+                <TrendingUp size={14} /> +{invested ? ((earned / invested) * 100).toFixed(1) : '0.0'}% extra on {rm(invested)} entry
               </div>
             </div>
             <span className="pill green"><span className="live-dot" style={{ width: 6, height: 6 }} /> {store.subs.length} active</span>
@@ -47,13 +74,15 @@ export default function Solar() {
             <AreaChart data={valueSeries} format={(v) => rm(v, 2)} height={130} />
           </div>
           <div className="kv" style={{ marginTop: 14 }}>
-            <div><span className="ic sm gold"><Coins size={15} /></span><div><div className="k">Total entry amount</div><div className="v">{rm(invested)}</div></div></div>
+            <div><span className="ic sm gold"><Coins size={15} /></span><div><div className="k">Total entry amount<Info size={12}>{HELP.entryTotal}</Info></div><div className="v">{rm(invested)}</div></div></div>
             <div><span className="ic sm gold"><Star size={15} /></span><div><div className="k">Points earned</div><div className="v">+{points.toLocaleString()}</div></div></div>
             <div><span className="ic sm gold"><Leaf size={15} /></span><div><div className="k">Carbon savings</div><div className="v">~{co2.toFixed(1)} t <small>/ yr</small></div></div></div>
-            <div><span className="ic sm gold"><CalendarDays size={15} /></span><div><div className="k">Next credit</div><div className="v">{payout.toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</div></div></div>
+            <div><span className="ic sm gold"><CalendarDays size={15} /></span><div><div className="k">Next credit<Info size={12}>{HELP.nextCredit}</Info></div><div className="v">{payout.toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</div></div></div>
           </div>
         </div>
       </Rise>
+
+      <Rise className="section" style={{ marginTop: 14 }}><PlanCard /></Rise>
 
       <Rise className="section">
         <div className="section-head">
@@ -82,7 +111,7 @@ export default function Solar() {
                     <div className="row" style={{ marginTop: 12, gap: 8 }}>
                       {[
                         ['Entry amount', rm(investedOf(s))],
-                        ['Est. value', rm(investedOf(s) + payoutsReceived(s))],
+                        ['Est. value', rm(investedOf(s) + interestReceived(s))],
                         ['Expected', `${site.returnLow}–${site.returnHigh}%`],
                       ].map(([k, v]) => (
                         <div key={k} style={{ flex: 1, background: '#FAFAF8', border: '1px solid var(--line-2)', borderRadius: 12, padding: '8px 10px' }}>
@@ -108,7 +137,7 @@ export default function Solar() {
       </Rise>
 
       <Rise className="section" id="credits">
-        <div className="section-head"><h2 className="h2">Recent energy savings credits</h2></div>
+        <div className="section-head"><h2 className="h2">Recent energy savings credits<Info>{HELP.energyCredit}</Info></h2></div>
         <div className="card" style={{ padding: '2px 16px' }}>
           <div className="list">
             {payouts.slice(-4).reverse().map((p) => (

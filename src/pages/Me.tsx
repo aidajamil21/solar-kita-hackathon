@@ -9,6 +9,8 @@ import { getSession, signOut } from '../api/backend'
 import { BADGES, KINDS, LEVELS, levelFor, MONTHS, siteById, townshipById, type SiteKind } from '../data'
 import { useStore } from '../store'
 import { asset } from '../asset'
+import { Info } from '../components/Info'
+import { HELP } from '../help'
 
 const KG_PER_KWH = 0.585
 const LEVEL_ICONS = [Leaf, UserRound, Sun, Globe2]
@@ -176,7 +178,7 @@ export default function Me() {
           </button>
           <button className="list-row" onClick={() => store.toast('Credits are applied to TNB account ••4821')}>
             <span className="ic sm blue"><Landmark size={16} /></span>
-            <div className="grow"><div className="title">Credit account</div><div className="desc">TNB electricity account ••4821</div></div>
+            <div className="grow"><div className="title">Credit account<Info size={13}>{HELP.creditAccount}</Info></div><div className="desc">TNB electricity account ••4821</div></div>
             <ChevronRight size={16} className="muted" />
           </button>
           <div className="list-row">
@@ -189,7 +191,7 @@ export default function Me() {
           </div>
           <div className="list-row">
             <span className="ic sm blue"><MapIcon size={16} /></span>
-            <div className="grow"><div className="title">3D township map</div><div className="desc">{store.mapMode === '3d' ? 'On · switch off for a lighter 2D map' : 'Off · using the lighter 2D map'}</div></div>
+            <div className="grow"><div className="title">3D township map<Info size={13}>{HELP.mapMode}</Info></div><div className="desc">{store.mapMode === '3d' ? 'On · switch off for a lighter 2D map' : 'Off · using the lighter 2D map'}</div></div>
             <button role="switch" aria-checked={store.mapMode === '3d'} aria-label="Toggle 3D map" onClick={() => store.setMapMode(store.mapMode === '3d' ? '2d' : '3d')}
               style={{ width: 46, height: 28, borderRadius: 14, background: store.mapMode === '3d' ? 'var(--brand)' : '#D8D7D2', position: 'relative', transition: 'background .3s' }}>
               <motion.span layout transition={{ type: 'spring', damping: 22, stiffness: 420 }} style={{ position: 'absolute', top: 3, left: store.mapMode === '3d' ? 21 : 3, width: 22, height: 22, borderRadius: 11, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)' }} />
@@ -208,7 +210,7 @@ export default function Me() {
           ))}
           <button className="list-row" onClick={() => { store.reset().then(() => { void reloadAlerts(); store.toast('Demo data has been reset') }).catch(() => {}) }}>
             <span className="ic sm grey"><RotateCcw size={16} /></span>
-            <div className="grow"><div className="title">Reset demo data</div><div className="desc">Restore the prototype’s starting state</div></div>
+            <div className="grow"><div className="title">Reset demo data<Info size={13}>{HELP.resetDemo}</Info></div><div className="desc">Restore the prototype’s starting state</div></div>
           </button>
           {getSession() && (
             <button className="list-row" onClick={signOut}>

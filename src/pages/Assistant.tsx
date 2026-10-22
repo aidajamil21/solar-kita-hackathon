@@ -7,6 +7,8 @@ import type { ChatMessage } from '../api/types'
 import { AttachmentView, ToolTrace } from '../components/chat/Cards'
 import { SAMPLE_CONVERSATION, SUGGESTIONS } from '../components/chat/sample'
 import { useStore } from '../store'
+import { Info } from '../components/Info'
+import { HELP } from '../help'
 
 
 /** tiny markdown: paragraphs, "- " bullet lists and **bold** */
@@ -174,7 +176,7 @@ export default function Assistant() {
         <Avatar />
         <div className="grow">
           <div style={{ fontWeight: 800, fontSize: 15 }}>Solar Analyst</div>
-          <div className="row" style={{ gap: 4, fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}><ShieldCheck size={12} color="#1F8A5B" /> Answers from verified data only</div>
+          <div className="row" style={{ gap: 4, fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}><ShieldCheck size={12} color="#1F8A5B" /> Answers from verified data only<Info size={12}>{HELP.verifiedData}</Info></div>
         </div>
         {messages.length > 0 && (
           <button className="icon-btn" aria-label="New conversation" onClick={clear}>

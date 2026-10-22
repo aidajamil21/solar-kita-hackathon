@@ -20,7 +20,7 @@ export interface Activity {
   type: ActivityType
 }
 
-export type ActivityType = 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle'
+export type ActivityType = 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle' | 'plan'
 
 export interface Redemption {
   id: string
@@ -57,8 +57,8 @@ const SEED: State = {
   lifetime: 2050,
   township: 'elmina',
   subs: [
-    { siteId: 'elmina-subscription', units: [3], since: '2024-01' },
-    { siteId: 'elmina-rooftop', units: [0], since: '2024-03' },
+    { siteId: 'elmina-subscription', units: [12, 13, 14, 15], since: '2024-01' },
+    { siteId: 'elmina-rooftop', units: [0, 1], since: '2024-03' },
   ],
   redemptions: [
     { id: 'r0', rewardId: 'ev20', at: now - 12 * DAY, code: 'SK-EV-4821' },
@@ -74,7 +74,7 @@ const SEED: State = {
   trips: [],
 }
 
-const KEY = 'solar-kita-v4'
+const KEY = 'solar-kita-v5'
 
 /** set before render when the backend answered at startup (see main.tsx); the store then reads and writes through the API */
 let remoteStart: RemoteMe | null = null
@@ -93,13 +93,28 @@ function load(): State {
   return SEED
 }
 
-/* ---------- payout maths (returns are based on projected energy savings) ---------- */
+/* ---------- credit maths ----------
+ * A block purchase is returned over 120 months, starting the month after it's bought:
+ * 1/120 of the price every month, plus the project's expected return (mid of its 2-3% range,
+ * scaled by that month's sunshine) on the part not yet returned. Same as server/src/utils.js.
+ */
 
+export const MONTHS_BACK = 120
 export const expectedRate = (s: Site) => (s.returnLow + s.returnHigh) / 200
 export const investedOf = (sub: Sub) => sub.units.length * (siteById(sub.siteId)?.pricePerUnit ?? 0)
-export const monthlyPayout = (sub: Sub) => {
-  const site = siteById(sub.siteId)!
-  return (investedOf(sub) * expectedRate(site)) / 12
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+/** credit k (1..120) for a purchase of `price`, paid in calendar month `monthIdx` (0 = Jan) */
+export function blockCredit(price: number, rate: number, k: number, monthIdx: number) {
+  if (k < 1 || k > MONTHS_BACK) return { capital: 0, interest: 0, amount: 0 }
+  // whole sen and integer maths so it rounds exactly like the server and seed.sql (half up)
+  const divRound = (num: number, den: number) => Math.floor((2 * num + den) / (2 * den))
+  const P = Math.round(price * 100)
+  const cap = divRound(P, MONTHS_BACK)
+  const capital = k < MONTHS_BACK ? cap : P - cap * (MONTHS_BACK - 1)
+  const interest = divRound((P - cap * (k - 1)) * Math.round(rate * 1e6) * Math.round(SUNSHINE[monthIdx] * 100), 1e6 * 100 * 12)
+  return { capital: capital / 100, interest: interest / 100, amount: (capital + interest) / 100 }
 }
 
 function monthIndex(ym: string) {
@@ -111,27 +126,46 @@ const thisMonth = () => {
   return d.getFullYear() * 12 + d.getMonth()
 }
 
-/** payouts per month (oldest first) from start until last month */
+/** the credit a holding pays in absolute month `idx` (credits start the month after purchase) */
+function creditIn(sub: Sub, idx: number) {
+  const site = siteById(sub.siteId)
+  if (!site) return { capital: 0, interest: 0, amount: 0 }
+  return blockCredit(investedOf(sub), expectedRate(site), idx - monthIndex(sub.since), idx % 12)
+}
+
+/** credits received (oldest first), from the month after purchase until last month */
 export function payoutHistory(sub: Sub) {
-  const start = monthIndex(sub.since)
-  const end = thisMonth()
-  const base = monthlyPayout(sub)
-  const out: { idx: number; month: number; year: number; amount: number }[] = []
-  for (let i = start; i < end; i++) {
-    out.push({ idx: i, month: i % 12, year: Math.floor(i / 12), amount: base * SUNSHINE[i % 12] })
+  const out: { idx: number; month: number; year: number; amount: number; capital: number; interest: number }[] = []
+  for (let i = monthIndex(sub.since) + 1; i < thisMonth(); i++) {
+    out.push({ idx: i, month: i % 12, year: Math.floor(i / 12), ...creditIn(sub, i) })
   }
   return out
 }
 
-export const payoutsReceived = (sub: Sub) => payoutHistory(sub).reduce((a, b) => a + b.amount, 0)
+/** everything credited so far (your money returned + extra) */
+export const payoutsReceived = (sub: Sub) => round2(payoutHistory(sub).reduce((a, b) => a + b.amount, 0))
+/** the extra earned so far, on top of your own money coming back */
+export const interestReceived = (sub: Sub) => round2(payoutHistory(sub).reduce((a, b) => a + b.interest, 0))
+/** your own money returned so far */
+export const capitalReturned = (sub: Sub) => round2(payoutHistory(sub).reduce((a, b) => a + b.capital, 0))
 
-/** combined monthly payouts across subs for the last n months */
+/** this month's credit (or next month's, for a holding bought this month) */
+export function monthlyPayout(sub: Sub) {
+  const now = thisMonth()
+  return creditIn(sub, Math.max(now, monthIndex(sub.since) + 1)).amount
+}
+
+/** credits in a given month, k months from now (0 = this month) */
+export const creditAhead = (sub: Sub, k: number) => creditIn(sub, Math.max(thisMonth(), monthIndex(sub.since) + 1) + k).amount
+
+/** combined monthly credits across holdings for the last n months */
 export function combinedPayouts(subs: Sub[], n: number) {
   const end = thisMonth()
   return Array.from({ length: n }, (_, k) => {
     const idx = end - n + k
-    const amount = subs.reduce((acc, s) => (monthIndex(s.since) <= idx ? acc + monthlyPayout(s) * SUNSHINE[idx % 12] : acc), 0)
-    return { idx, month: idx % 12, year: Math.floor(idx / 12), amount }
+    let amount = 0, interest = 0
+    for (const s of subs) { const c = creditIn(s, idx); amount += c.amount; interest += c.interest }
+    return { idx, month: idx % 12, year: Math.floor(idx / 12), amount: round2(amount), interest: round2(interest) }
   })
 }
 
@@ -155,6 +189,8 @@ interface Store extends State {
   setTownship: (id: string) => void
   setMapMode: (mode: MapMode) => void
   reset: () => Promise<void>
+  /** replace the resident's data with what the server returned (after plan changes etc.) */
+  applyMe: (me: RemoteMe) => void
   /** save a walk/ride; rejects with a message when it doesn't qualify */
   logTrip: (mode: TripMode, path: GpsPoint[], source: 'gps' | 'demo') => Promise<TripResult>
   toast: (text: string) => void
@@ -304,9 +340,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setMapMode,
     reset,
     logTrip,
+    applyMe: apply,
     takenFor: (site) => new Set(site.taken),
     mineFor: (site) => new Set(state.subs.find((x) => x.siteId === site.id)?.units ?? []),
-  }), [state, online, toasts, toast, subscribe, redeem, checkIn, setTownship, setMapMode, reset, logTrip])
+  }), [state, online, toasts, toast, subscribe, redeem, checkIn, setTownship, setMapMode, reset, logTrip, apply])
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>
 }

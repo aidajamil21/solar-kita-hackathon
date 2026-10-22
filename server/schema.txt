@@ -66,6 +66,8 @@ create table public.sites (
   since_date date,
   -- frontend layout: unit grid columns, block on the township map, live output %
   grid_cols integer not null default 1 check (grid_cols > 0),
+  -- each row/home is split into this many pickable blocks (1a, 1b, ...); total_units = rows x blocks
+  blocks_per_row smallint not null default 1 check (blocks_per_row between 1 and 8),
   map_x smallint check (map_x between 0 and 3),
   map_z smallint check (map_z between 0 and 3),
   output_pct numeric(5,2) check (output_pct between 0 and 100),

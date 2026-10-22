@@ -20,7 +20,7 @@ export const KINDS: Record<SiteKind, KindMeta> = {
     short: 'Subscription',
     icon: Sun,
     tint: '#FF6E00',
-    unitName: 'panel row',
+    unitName: 'panel block',
     blurb: 'Flexible subscription for community-scale solar. Support utility-scale solar and enjoy clean energy returns.',
   },
   investment: {
@@ -36,7 +36,7 @@ export const KINDS: Record<SiteKind, KindMeta> = {
     short: 'Rooftop',
     icon: House,
     tint: '#2F8F6B',
-    unitName: 'rooftop',
+    unitName: 'roof section',
     blurb: 'Solar for homes, cleaner neighbourhoods.',
   },
   ev: {
@@ -63,8 +63,12 @@ export interface Site {
   /** tonnes CO2e avoided per unit per year */
   co2PerUnit: number
   kwpPerUnit: number
+  /** total units you can pick = rows x blocks */
   units: number
+  /** rows (or homes / bays) per line on the site layout */
   cols: number
+  /** blocks each row is split into (1a, 1b, 1c...); 1 = whole units */
+  blocks: number
   /** unit indexes already taken by other residents */
   taken: number[]
   capacityMW: number
@@ -139,27 +143,48 @@ export const KIND_PHOTOS: Record<SiteKind, { hero: string; thumb: string }> = {
   ev: { hero: P('solar_carport_2'), thumb: P('solar_car_park') },
 }
 
+/**
+ * Per-block figures; a row/home is split into `blocks` units. kWp is the resident's realistic share for the
+ * price (farm solar costs roughly RM 2.5-4 per watt). The price comes back over 10 years plus the return.
+ */
 const base = {
-  subscription: { pricePerUnit: 1000, returnLow: 4, returnHigh: 6, pointsPerUnit: 200, co2PerUnit: 1.2, kwpPerUnit: 10, units: 14, cols: 2 },
-  investment: { pricePerUnit: 50000, returnLow: 6, returnHigh: 9, pointsPerUnit: 500, co2PerUnit: 30, kwpPerUnit: 250, units: 18, cols: 2 },
-  rooftop: { pricePerUnit: 8000, returnLow: 5, returnHigh: 8, pointsPerUnit: 100, co2PerUnit: 3.1, kwpPerUnit: 6, units: 6, cols: 3 },
-  ev: { pricePerUnit: 10000, returnLow: 5, returnHigh: 8, pointsPerUnit: 300, co2PerUnit: 4.2, kwpPerUnit: 20, units: 8, cols: 4 },
+  subscription: { pricePerUnit: 250, returnLow: 2, returnHigh: 3, pointsPerUnit: 50, co2PerUnit: 0.07, kwpPerUnit: 0.09, rows: 14, blocks: 4, cols: 2 },
+  investment: { pricePerUnit: 12500, returnLow: 2.5, returnHigh: 3, pointsPerUnit: 125, co2PerUnit: 3.8, kwpPerUnit: 5, rows: 18, blocks: 4, cols: 2 },
+  rooftop: { pricePerUnit: 4000, returnLow: 2, returnHigh: 3, pointsPerUnit: 50, co2PerUnit: 0.76, kwpPerUnit: 1, rows: 6, blocks: 2, cols: 3 },
+  ev: { pricePerUnit: 10000, returnLow: 1.5, returnHigh: 2.5, pointsPerUnit: 300, co2PerUnit: 2.66, kwpPerUnit: 3.5, rows: 8, blocks: 1, cols: 4 },
 } as const
 
-function site(townshipId: string, kind: SiteKind, name: string, block: [number, number], extra: Partial<Site> & { taken: number[] }): Site {
+/** "1a", "1b"... for split rows, "1", "2"... for whole units */
+export const unitLabel = (site: Pick<Site, 'blocks'>, i: number) =>
+  site.blocks > 1 ? `${Math.floor(i / site.blocks) + 1}${'abcdefgh'[i % site.blocks]}` : String(i + 1)
+
+/** columns for a unit picker grid: two rows' worth of blocks per line (three homes for rooftops) */
+export const unitGridCols = (site: Pick<Site, 'blocks' | 'cols'>) =>
+  site.blocks > 1 ? site.blocks * (site.cols === 3 ? 3 : 2) : site.cols === 2 ? 4 : site.cols
+
+/** neighbours' rows -> block indexes; most blocks of a taken row are taken, leaving a few open */
+function takenBlocks(rows: readonly number[], blocks: number, salt: number) {
+  if (blocks === 1) return [...rows]
+  return rows.flatMap((r) => Array.from({ length: blocks }, (_, b) => b).filter((b) => (r * 7 + b * 3 + salt) % 4 !== 0).map((b) => r * blocks + b))
+}
+
+function site(townshipId: string, kind: SiteKind, name: string, block: [number, number], extra: Partial<Omit<Site, 'taken'>> & { taken: number[] }): Site {
+  const { rows, ...b } = base[kind]
   return {
     id: `${townshipId}-${kind}`,
     townshipId,
     kind,
     name,
     block,
-    ...base[kind],
+    ...b,
+    units: rows * b.blocks,
     capacityMW: 5,
     outputPct: 56,
     since: 'Jan 2024',
     description: KINDS[kind].blurb,
     homesPowered: 1200,
     ...extra,
+    taken: takenBlocks(extra.taken, b.blocks, name.length),
   }
 }
 
@@ -237,7 +262,7 @@ for (const t of TOWNSHIPS) {
       if (!used.has(`${block[0]},${block[1]}`)) break
     }
     used.add(`${block[0]},${block[1]}`)
-    const n = base[kind].units
+    const n = base[kind].rows
     const taken = Array.from({ length: n }, (_, i) => i).filter(() => r() < 0.4)
     const short = t.name.replace(/^(City of|Bandar|Taman) /, '').split(' ')[0]
     SITES.push(site(t.id, kind, `${short} ${GEN_NAMES[kind]}`, block, {
@@ -319,7 +344,7 @@ function mergeInPlace<T extends { id: string }>(target: T[], incoming: T[]) {
  */
 export function hydrateCatalogue(c: Catalogue) {
   mergeInPlace(TOWNSHIPS, c.townships.map((t) => ({ ...t, photo: t.photo ? asset(t.photo) : null })))
-  mergeInPlace(SITES, c.sites.map((s) => ({ ...s, block: s.block as [number, number] })))
+  mergeInPlace(SITES, c.sites.map((s) => ({ ...s, block: s.block as [number, number], blocks: s.blocks ?? 1 })))
   const prev = new Map(REWARDS.map((r) => [r.id, r]))
   mergeInPlace(REWARDS, c.rewards.map((r) => ({
     id: r.id,
@@ -352,10 +377,10 @@ export const BADGES: { id: string; name: string; desc: string; icon: LucideIcon;
 ]
 
 export const EARN_WAYS: { id: string; title: string; desc: string; points: string; icon: LucideIcon; to: string | null }[] = [
-  { id: 'roof', title: 'Rooftop Initiative', desc: 'Fund solar on a neighbour’s roof', points: '+100', icon: House, to: '/explore' },
-  { id: 'sub', title: 'Solar Farm Subscription', desc: 'Subscribe to community solar', points: '+100', icon: Sun, to: '/explore' },
-  { id: 'inv', title: 'Solar Farm Investment', desc: 'Back larger solar assets', points: '+250', icon: TrendingUp, to: '/explore' },
-  { id: 'ev', title: 'EV Charger Rooftop', desc: 'Power township EV chargers', points: '+150', icon: PlugZap, to: '/explore' },
+  { id: 'roof', title: 'Rooftop Initiative', desc: 'Fund a section of a neighbour’s roof', points: '+50', icon: House, to: '/explore' },
+  { id: 'sub', title: 'Solar Farm Subscription', desc: 'Subscribe to a block of community solar', points: '+50', icon: Sun, to: '/explore' },
+  { id: 'inv', title: 'Solar Farm Investment', desc: 'Back a block of a larger solar asset', points: '+125', icon: TrendingUp, to: '/explore' },
+  { id: 'ev', title: 'EV Charger Rooftop', desc: 'Power a township EV charger bay', points: '+300', icon: PlugZap, to: '/explore' },
 ]
 
 /** deterministic sunshine factor per month index (0 = Jan) */

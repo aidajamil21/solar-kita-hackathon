@@ -19,7 +19,7 @@ export const SAMPLE_ALERTS: Alert[] = [
   { id: 'al1', type: 'low_generation', severity: 'warning', detection: 'scheduled_check', createdAt: t(90), read: false, projectId: 'serenia-subscription',
     title: 'Low solar generation', body: 'Serenia Sunrise Farm has been 12% below forecast for 3 days due to heavy cloud cover.' },
   { id: 'al2', type: 'payout_completed', severity: 'success', detection: 'database_event', createdAt: t(60 * 26), read: false,
-    title: 'Energy Savings Credit applied', body: 'Your September credit of RM 47.50 was applied to your TNB bill (account ••4821).' },
+    title: 'Energy Savings Credit applied', body: 'Your September credit of RM 88.48 was applied to your TNB bill (account ••4821).' },
   { id: 'al3', type: 'funding_milestone', severity: 'info', detection: 'scheduled_check', createdAt: t(60 * 50), read: false, projectId: 'elmina-investment',
     title: 'Funding milestone', body: 'Elmina Grid Array is 80% funded. Subscriptions close in 14 days.' },
   { id: 'al4', type: 'project_report', severity: 'info', detection: 'database_event', createdAt: t(60 * 74), read: true, projectId: 'elmina-subscription',
@@ -41,14 +41,14 @@ export const SAMPLE_CONVERSATION: ChatMessage[] = [
   {
     id: 's2', role: 'assistant', createdAt: t(12),
     toolCalls: [{ name: 'get_portfolio_summary' }, { name: 'calculate_realized_return' }],
-    content: 'Here’s your portfolio based on **verified ledger data**:\n\n- You’ve **contributed RM 9,000** across 2 projects.\n- You’ve **received RM 1,449.23 in Energy Savings Credits** on your TNB bill so far.\n- There are **no credits on the way** right now.\n\nThat means you’ve **earned back 16.1%** since January 2024 (about 5.9% a year). Your next credit is estimated at RM 47.50 on 28 October. That figure is an estimate, not a guarantee.',
+    content: 'Here’s your portfolio based on **verified ledger data**:\n\n- You’ve **contributed RM 9,000** across 2 projects.\n- You’ve **received RM 2,752.23 in Energy Savings Credits** on your TNB bill so far.\n- **RM 87.63** is booked but not yet paid.\n\nOf what’s come back, **RM 2,266.66 is your own money returned** and **RM 485.57 is extra** earned since January 2024 (about 2.5% a year on the money still out). The rest of what you paid keeps coming back monthly over 10 years. Your next credit is estimated at RM 87.63 on 28 October. That figure is an estimate, not a guarantee.',
     attachments: [
       { kind: 'portfolio', data: {
-        basis: 'verified', asOf, source: 'Credit ledger', totalContributed: 9000, totalPayoutsReceived: 1449.23, outstandingPayouts: 0,
-        nextPayout: { date: new Date(new Date().getFullYear(), new Date().getMonth(), 28).toISOString(), estimatedAmount: 47.5 },
+        basis: 'verified', asOf, source: 'Credit ledger', totalContributed: 9000, totalPayoutsReceived: 2752.23, outstandingPayouts: 87.63,
+        nextPayout: { date: new Date(new Date().getFullYear(), new Date().getMonth(), 28).toISOString(), estimatedAmount: 87.63 },
         holdings: [
-          { projectId: 'elmina-subscription', projectName: 'Elmina Sunfield', kind: 'subscription', township: 'City of Elmina', units: 1, contributed: 1000, payoutsReceived: 134.5, status: 'active' },
-          { projectId: 'elmina-rooftop', projectName: 'Elmina West Homes', kind: 'rooftop', township: 'City of Elmina', units: 1, contributed: 8000, payoutsReceived: 1314.73, status: 'active' },
+          { projectId: 'elmina-subscription', projectName: 'Elmina Sunfield', kind: 'subscription', township: 'City of Elmina', units: 4, contributed: 1000, payoutsReceived: 323.49, status: 'active' },
+          { projectId: 'elmina-rooftop', projectName: 'Elmina West Homes', kind: 'rooftop', township: 'City of Elmina', units: 2, contributed: 8000, payoutsReceived: 2428.74, status: 'active' },
         ],
       } },
     ],
@@ -58,17 +58,17 @@ export const SAMPLE_CONVERSATION: ChatMessage[] = [
   {
     id: 's4', role: 'assistant', createdAt: t(10),
     toolCalls: [{ name: 'calculate_projected_scenarios', args: { amount: 1000, years: 5 } }],
-    content: 'These are **projections, not actual results**. Over 5 years, RM 1,000 could return roughly **RM 175 to RM 325** in total Energy Savings Credits, depending on sunshine and tariffs. Over 3 years, that range is about RM 105 to RM 195.\n\nThe assumptions and main risks are listed below. No future payout is guaranteed.',
+    content: 'These are **projections, not actual results**. Your RM 1,000 comes back to you over 10 years. Over 5 years, **RM 500 of it is back** and you’d earn roughly **RM 75 to RM 113 extra**, depending on sunshine and tariffs. Over 3 years: RM 300 back plus about RM 51 to RM 77 extra.\n\nThe assumptions and main risks are listed below. No future payout is guaranteed.',
     attachments: [
       { kind: 'scenarios', data: {
         basis: 'forecast', asOf, source: 'Scenario model', amount: 1000, years: 5,
         scenarios: [
-          { name: 'Conservative', annualReturnPct: 3.5, totalPayouts: 175, endValue: 1175 },
-          { name: 'Base', annualReturnPct: 5, totalPayouts: 250, endValue: 1250 },
-          { name: 'Optimistic', annualReturnPct: 6.5, totalPayouts: 325, endValue: 1325 },
+          { name: 'Conservative', annualReturnPct: 2, totalPayouts: 75.42, endValue: 1075.42, moneyBack: 500 },
+          { name: 'Base', annualReturnPct: 2.5, totalPayouts: 94.27, endValue: 1094.27, moneyBack: 500 },
+          { name: 'Optimistic', annualReturnPct: 3, totalPayouts: 113.13, endValue: 1113.13, moneyBack: 500 },
         ],
-        assumptions: ['Credits come from energy savings and are not compounded.', 'Output follows the 10-year Klang Valley sunshine average.', 'Panels degrade about 0.5% a year.'],
-        risks: ['Cloudy months or outages reduce credits.', 'Tariff or regulatory changes.', 'Contributions are not capital-guaranteed.'],
+        assumptions: ['Your money comes back in equal monthly parts over 10 years.', 'The return is earned on the part not yet returned.', 'Output follows the long-run Klang Valley sunshine pattern.'],
+        risks: ['Cloudy months or outages reduce the return.', 'Tariff or regulatory changes.', 'Returns are estimates and not guaranteed.'],
       } },
     ],
   },

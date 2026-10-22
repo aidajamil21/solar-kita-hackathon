@@ -38,7 +38,11 @@ export interface RealizedReturn extends DataMeta {
   contributions: number
   payouts: number
   fees: number
-  /** (payouts - fees) / contributions */
+  /** part of the credits that is the resident's own money coming back */
+  capitalReturned?: number
+  /** part of the credits earned on top */
+  extra?: number
+  /** extra earned / contributions */
   realizedReturnPct: number
   /** annualised, money-weighted */
   annualisedPct: number
@@ -51,6 +55,8 @@ export interface Scenario {
   annualReturnPct: number
   totalPayouts: number
   endValue: number
+  /** own money returned by the end of the period */
+  moneyBack?: number
 }
 export interface ScenarioSet extends DataMeta {
   amount: number

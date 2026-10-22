@@ -54,6 +54,22 @@ export function monthsUntilNow(from) {
 /** credit due date for a month: the 28th, 10:00 UTC (same as seed.sql) */
 export const dueDate = (month) => new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 28, 10))
 
-/** monthly Energy Savings Credit for a holding, same formula as the app and seed.sql */
-export const monthlyCredit = (units, site, month) =>
-  Math.round(((units * Number(site.price_per_unit) * (Number(site.return_low_pct) + Number(site.return_high_pct))) / 200 / 12) * SUNSHINE[month.getUTCMonth()] * 100) / 100
+/** purchases are returned over this many months */
+export const MONTHS_BACK = 120
+
+/**
+ * Credit k (1..120) for a block purchase of `price`: 1/120 of the price back, plus `rate`
+ * (a fraction, e.g. 0.025) a year on the part not yet returned, scaled by the month's sunshine.
+ * Same formula as src/store.tsx and seed.sql.
+ */
+export function blockCredit(price, rate, k, month) {
+  // whole sen and integer maths so it rounds exactly like Postgres numeric (half up)
+  const divRound = (num, den) => Math.floor((2 * num + den) / (2 * den))
+  const P = Math.round(Number(price) * 100)
+  const cap = divRound(P, MONTHS_BACK)
+  const capital = k < MONTHS_BACK ? cap : P - cap * (MONTHS_BACK - 1)
+  const rateMicro = Math.round(Number(rate) * 1e6)
+  const sun = Math.round(SUNSHINE[new Date(month).getUTCMonth()] * 100)
+  const interest = divRound((P - cap * (k - 1)) * rateMicro * sun, 1e6 * 100 * 12)
+  return { capital: capital / 100, interest: interest / 100, amount: (capital + interest) / 100 }
+}

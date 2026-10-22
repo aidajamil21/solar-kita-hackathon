@@ -92,7 +92,7 @@ export interface RemoteTownship {
 export interface RemoteSite {
   id: string; townshipId: string; kind: 'subscription' | 'investment' | 'rooftop' | 'ev'; name: string; block: [number, number]
   pricePerUnit: number; returnLow: number; returnHigh: number; pointsPerUnit: number; co2PerUnit: number; kwpPerUnit: number
-  units: number; cols: number; taken: number[]; capacityMW: number; outputPct: number; since: string; description: string; homesPowered: number
+  units: number; cols: number; blocks?: number; taken: number[]; capacityMW: number; outputPct: number; since: string; description: string; homesPowered: number
 }
 export interface RemoteReward {
   id: string; title: string; value: string; detail: string; cost: number; cat: 'mobility' | 'shopping' | 'home' | 'community'; icon: string | null; photo: string | null
@@ -107,10 +107,29 @@ export interface RemoteMe {
   mapMode: '3d' | '2d'
   subs: { siteId: string; units: number[]; since: string }[]
   redemptions: { id: string; rewardId: string; at: number; code: string }[]
-  activity: { id: string; title: string; points: number; at: number; type: 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle' }[]
+  activity: { id: string; title: string; points: number; at: number; type: 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle' | 'plan' }[]
   checkins: string[]
   trips: Trip[]
 }
+
+/* ---------- Solar Builder Plan (see server/src/plan.js) ---------- */
+export interface PlanSummary {
+  /** false until server/plan.sql has been run */
+  setup: boolean
+  plan?: {
+    id: string; siteId: string; siteName: string; monthlyAmount: number
+    status: 'active' | 'paused' | 'cancelled'; chargeDay: number; nextChargeAt: string | null
+    streak: number; startedAt: string; cancelledAt: string | null
+  } | null
+  payments?: { id: string; seq: number; amount: number; paidAt: string; points: number }[]
+  totals?: {
+    paid: number; returned: number; extra: number; received: number; outstanding: number; expectedTotal: number
+    lastCredit: { month: string; amount: number } | null
+    nextCredit: { date: string; amount: number } | null
+  }
+  credits?: { month: string; amount: number; upcoming: boolean }[]
+}
+type PlanChange = PlanSummary & { me: RemoteMe }
 
 export const backendApi = {
   isConfigured,
@@ -133,6 +152,14 @@ export const backendApi = {
   resetDemo: () => post<RemoteMe>('/api/demo/reset'),
   logTrip: (mode: TripMode, path: GpsPoint[], source: 'gps' | 'demo') =>
     post<{ trip: Trip; capped: boolean; me: RemoteMe }>('/api/green/trips', { mode, path, source }),
+
+  /* Solar Builder Plan */
+  getPlan: () => request<PlanSummary>('/api/plan'),
+  startPlan: (monthlyAmount: number, siteId: string) => post<PlanChange>('/api/plan', { monthlyAmount, siteId }),
+  updatePlan: (patch: { monthlyAmount?: number; status?: 'active' | 'paused' }) =>
+    request<PlanChange>('/api/plan', { method: 'PATCH', body: JSON.stringify(patch) }),
+  stopPlan: () => request<PlanChange>('/api/plan', { method: 'DELETE' }),
+  skipPlanMonth: () => post<PlanChange>('/api/plan/skip-month'),
 
   /* AI analyst tools */
   getPortfolioSummary: () => request<PortfolioSummary>('/api/portfolio/summary'),

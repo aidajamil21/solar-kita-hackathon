@@ -4,6 +4,8 @@ import { createElement } from 'react'
 import { KINDS, rm, type Site, type SiteKind } from '../data'
 import { ProjectArt } from './Art'
 import { Coin } from './ui'
+import { Info } from './Info'
+import { HELP } from '../help'
 
 const ENTRY_NOTE: Record<SiteKind, string> = {
   subscription: 'Flexible subscription plans',
@@ -16,10 +18,10 @@ const ENTRY_NOTE: Record<SiteKind, string> = {
 export function ProjectFacts({ site, layout = 'list' }: { site: Site; layout?: 'list' | 'grid' }) {
   const unit = KINDS[site.kind].unitName
   const rows = [
-    { icon: Coins, label: 'Entry cost', value: `From ${rm(site.pricePerUnit)}`, note: ENTRY_NOTE[site.kind] },
-    { icon: BarChart3, label: 'Expected return', value: `${site.returnLow} – ${site.returnHigh}% p.a.`, note: 'Based on projected energy savings' },
-    { icon: Star, label: 'Reward points', value: `+ ${site.pointsPerUnit} points`, note: `Per ${unit}` },
-    { icon: Leaf, label: 'Carbon savings', value: `~ ${site.co2PerUnit} tCO₂e / year`, note: `Per ${unit}` },
+    { icon: Coins, label: 'Entry cost', value: `From ${rm(site.pricePerUnit)}`, note: ENTRY_NOTE[site.kind], help: HELP.entryCost(unit) },
+    { icon: BarChart3, label: 'Expected return', value: `${site.returnLow} – ${site.returnHigh}% p.a.`, note: 'Plus your money back over 10 years', help: HELP.expectedReturn },
+    { icon: Star, label: 'Reward points', value: `+ ${site.pointsPerUnit} points`, note: `Per ${unit}`, help: HELP.rewardPoints(unit) },
+    { icon: Leaf, label: 'Carbon savings', value: `~ ${site.co2PerUnit} tCO₂e / year`, note: `Per ${unit}`, help: HELP.carbon },
   ]
   if (layout === 'grid') {
     return (
@@ -27,7 +29,7 @@ export function ProjectFacts({ site, layout = 'list' }: { site: Site; layout?: '
         {rows.map((r) => (
           <div key={r.label}>
             <span className="ic sm gold">{createElement(r.icon, { size: 15 })}</span>
-            <div style={{ minWidth: 0 }}><div className="k">{r.label}</div><div className="v" style={{ fontSize: 13.5 }}>{r.value}</div></div>
+            <div style={{ minWidth: 0 }}><div className="k">{r.label}<Info size={13}>{r.help}</Info></div><div className="v" style={{ fontSize: 13.5 }}>{r.value}</div></div>
           </div>
         ))}
       </div>
@@ -39,7 +41,7 @@ export function ProjectFacts({ site, layout = 'list' }: { site: Site; layout?: '
         <div key={r.label} className="list-row" style={{ padding: '10px 0' }}>
           <span className="ic gold">{createElement(r.icon, { size: 18 })}</span>
           <div className="grow">
-            <div style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{r.label}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--muted)', fontWeight: 600 }}>{r.label}<Info size={13}>{r.help}</Info></div>
             <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.01em' }}>{r.value}</div>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.note}</div>
           </div>

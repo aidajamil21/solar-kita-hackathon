@@ -6,6 +6,8 @@ import { asset } from '../asset'
 import { townshipById } from '../data'
 import { checkTrip, demoRoute, fmtDuration, GREEN, greenPointsToday, haversineKm, type GpsPoint, type Trip, type TripMode } from '../green'
 import { useStore, type TripResult } from '../store'
+import { Info } from '../components/Info'
+import { HELP } from '../help'
 
 const MODES: Record<TripMode, { label: string; icon: typeof Footprints; verb: string }> = {
   walk: { label: 'Walk', icon: Footprints, verb: 'walked' },
@@ -118,7 +120,7 @@ export default function Green() {
         <div className="card raised pad">
           <div className="row between">
             <div>
-              <div className="muted small" style={{ fontWeight: 600 }}>Green points today</div>
+              <div className="muted small" style={{ fontWeight: 600 }}>Green points today<Info size={13}>{HELP.greenDaily}</Info></div>
               <div className="row" style={{ gap: 6, alignItems: 'baseline' }}>
                 <span style={{ fontSize: 28, fontWeight: 800 }}><Count value={today} /></span>
                 <span style={{ fontWeight: 600, color: 'var(--ink-2)' }}>/ {GREEN.dailyCap}</span>
@@ -129,8 +131,8 @@ export default function Green() {
           <div style={{ marginTop: 10 }}><Progress value={today / GREEN.dailyCap} /></div>
           <div className="grid-3" style={{ marginTop: 14 }}>
             <Mini icon={<Route size={15} />} v={`${week.km.toFixed(1)} km`} l="This week" />
-            <Mini icon={<Leaf size={15} />} v={`${week.co2.toFixed(1)} kg`} l="CO₂ avoided" />
-            <Mini icon={<Fuel size={15} />} v={`RM ${week.rm.toFixed(2)}`} l="Petrol saved" />
+            <Mini icon={<Leaf size={15} />} v={`${week.co2.toFixed(1)} kg`} l={<>CO₂ avoided<Info size={11}>{HELP.greenSavings}</Info></>} />
+            <Mini icon={<Fuel size={15} />} v={`RM ${week.rm.toFixed(2)}`} l={<>Petrol saved<Info size={11}>{HELP.greenSavings}</Info></>} />
           </div>
         </div>
       </Rise>
@@ -145,7 +147,7 @@ export default function Green() {
             </div>
           </div>
           <div className="muted small" style={{ marginTop: 4 }}>
-            1 point per {GREEN[mode].kmPerPoint} km {mode === 'walk' ? 'walked' : 'cycled'} · up to {GREEN.dailyCap} points a day · within {GREEN.areaRadiusKm} km of {town.name}
+            1 point per {GREEN[mode].kmPerPoint} km {mode === 'walk' ? 'walked' : 'cycled'} · up to {GREEN.dailyCap} points a day · within {GREEN.areaRadiusKm} km of {town.name}<Info size={13}>{HELP.greenRate} {HELP.greenArea}</Info>
           </div>
 
           <AnimatePresence mode="wait" initial={false}>
@@ -156,7 +158,7 @@ export default function Green() {
                   <span>Start {MODES[mode].label.toLowerCase()}</span>
                 </motion.button>
                 <div className="muted small" style={{ marginTop: 14, textAlign: 'center' }}>Uses your phone’s GPS. Keep the app open while you go.</div>
-                <button className="link" style={{ marginTop: 8 }} onClick={startDemo}><Play size={13} /> No GPS here? Try a demo route</button>
+                <button className="link" style={{ marginTop: 8 }} onClick={startDemo}><Play size={13} /> No GPS here? Try a demo route<Info size={13}>{HELP.greenDemo}</Info></button>
               </motion.div>
             ) : (
               <motion.div key="live" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -171,7 +173,7 @@ export default function Green() {
                   {gpsNote && <span className="pill grey"><Navigation size={12} /> {gpsNote}</span>}
                   {fromCentre !== null && (
                     fromCentre <= GREEN.areaRadiusKm
-                      ? <span className="pill green"><MapPin size={12} /> Inside {town.name}</span>
+                      ? <span className="pill green"><MapPin size={12} /> Inside {town.name}<Info size={12}>{HELP.greenArea}</Info></span>
                       : <span className="pill"><MapPin size={12} /> {fromCentre.toFixed(1)} km from {town.name}</span>
                   )}
                   {source === 'demo' && <span className="pill grey"><Play size={12} /> Demo route</span>}
@@ -225,7 +227,7 @@ export default function Green() {
   )
 }
 
-function Mini({ icon, v, l }: { icon: React.ReactNode; v: string; l: string }) {
+function Mini({ icon, v, l }: { icon: React.ReactNode; v: string; l: React.ReactNode }) {
   return (
     <div className="col" style={{ gap: 4, padding: '10px 8px', borderRadius: 14, background: 'var(--green-soft)', alignItems: 'center', textAlign: 'center' }}>
       <span style={{ color: 'var(--green)' }}>{icon}</span>
