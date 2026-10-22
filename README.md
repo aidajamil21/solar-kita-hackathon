@@ -4,7 +4,7 @@ Mobile-first web app for **community solar in Sime Darby Property townships**. R
 
 > Hackathon prototype. The frontend is complete and runs on local demo data. **The backend is not built yet** (see [Backend integration](#backend-integration)).
 
-**Live demo:** https://aidajamil21.github.io/solar-kita-hackathon/
+**Live demo:** https://solar-kita.vercel.app/
 
 ## Quick start
 

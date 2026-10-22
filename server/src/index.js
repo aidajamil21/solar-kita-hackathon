@@ -1,7 +1,7 @@
 import app from './app.js'
 import { config } from './config.js'
 
-// local server: `npm run dev` in /server (on Vercel, api/[...path].js serves the same app)
+// local server: `npm run dev` in /server (on Vercel, api/index.js serves the same app)
 const server = app.listen(config.port, () => {
   console.log(`Server listening on http://localhost:${config.port}`)
 })

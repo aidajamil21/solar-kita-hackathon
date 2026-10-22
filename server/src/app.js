@@ -1,5 +1,5 @@
 /**
- * The Express app, shared by the local server (index.js) and the Vercel function (api/[...path].js).
+ * The Express app, shared by the local server (index.js) and the Vercel function (api/index.js).
  */
 import cors from 'cors'
 import express from 'express'
