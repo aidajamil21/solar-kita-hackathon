@@ -10,7 +10,50 @@ export function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n))
 }
 
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+export const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+/** monthly sunshine factor (0 = Jan); must match src/data.ts and seed.sql */
+export const SUNSHINE = [0.92, 1.02, 1.08, 1.06, 1.0, 0.97, 1.01, 0.99, 0.95, 0.9, 0.86, 0.88]
+
 export function toMonthLabel(dateLike) {
-  const d = new Date(dateLike)
-  return d.toLocaleString('en-MY', { month: 'short' })
+  return MONTHS[new Date(dateLike).getUTCMonth()]
 }
+
+/** an error that carries the HTTP status to answer with */
+export class HttpError extends Error {
+  constructor(status, message) {
+    super(message)
+    this.status = status
+  }
+}
+
+/** 'RM 1,449.26' (dp = 2) or 'RM 9,000' (dp = 0) */
+export const rm = (n, dp = 2) =>
+  'RM ' + Number(n).toLocaleString('en-MY', { minimumFractionDigits: dp, maximumFractionDigits: dp })
+
+/** today's date in Malaysia as YYYY-MM-DD */
+export const todayKL = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date())
+
+/** first day of the month (UTC) as YYYY-MM-DD */
+export const monthStart = (d = new Date()) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`
+
+/** list of month starts (UTC Dates) from `from` up to and including the current month */
+export function monthsUntilNow(from) {
+  const out = []
+  const now = new Date()
+  const end = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+  const d = new Date(from)
+  for (let t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); t <= end;) {
+    out.push(new Date(t))
+    const m = new Date(t)
+    t = Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1)
+  }
+  return out
+}
+
+/** credit due date for a month: the 28th, 10:00 UTC (same as seed.sql) */
+export const dueDate = (month) => new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 28, 10))
+
+/** monthly Energy Savings Credit for a holding, same formula as the app and seed.sql */
+export const monthlyCredit = (units, site, month) =>
+  Math.round(((units * Number(site.price_per_unit) * (Number(site.return_low_pct) + Number(site.return_high_pct))) / 200 / 12) * SUNSHINE[month.getUTCMonth()] * 100) / 100

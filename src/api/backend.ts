@@ -1,29 +1,41 @@
+import type { GpsPoint, Trip, TripMode } from '../green'
 import type { Alert, ChatMessage, EnvironmentalImpact, PortfolioSummary, ProjectPerformance, RealizedReturn, ScenarioSet } from './types'
 
-const baseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
+const baseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '')
 const userId = (import.meta.env.VITE_DEMO_USER_ID as string | undefined)?.trim()
 
 function isConfigured() {
   return !!baseUrl && !!userId
 }
 
+/** a failed API call; `status` is 0 when the server couldn't be reached */
+export class ApiError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!isConfigured()) {
-    throw new Error('Missing VITE_API_URL or VITE_DEMO_USER_ID')
+    throw new ApiError(0, 'Missing VITE_API_URL or VITE_DEMO_USER_ID')
   }
 
   const headers = new Headers(init?.headers)
   headers.set('Content-Type', 'application/json')
   headers.set('x-user-id', userId!)
 
-  const res = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers,
-  })
+  let res: Response
+  try {
+    res = await fetch(`${baseUrl}${path}`, { ...init, headers })
+  } catch {
+    throw new ApiError(0, 'Can’t reach the Solar Kita server')
+  }
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(text || `Request failed: ${res.status}`)
+    const body = await res.json().catch(() => null) as { error?: string } | null
+    throw new ApiError(res.status, body?.error || `Request failed: ${res.status}`)
   }
 
   if (res.status === 204) {
@@ -33,31 +45,71 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+const post = <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
+
+/* ---------- shapes served by /api/catalogue and /api/me (see server/src/services.js) ---------- */
+
+export interface RemoteTownship {
+  id: string; name: string; area: string; state: string; lat: number; lon: number; photo: string | null
+  lake: [number, number]; park: [number, number]; towers: [number, number][]; seed: number; communityMWh: number; residents: number
+}
+export interface RemoteSite {
+  id: string; townshipId: string; kind: 'subscription' | 'investment' | 'rooftop' | 'ev'; name: string; block: [number, number]
+  pricePerUnit: number; returnLow: number; returnHigh: number; pointsPerUnit: number; co2PerUnit: number; kwpPerUnit: number
+  units: number; cols: number; taken: number[]; capacityMW: number; outputPct: number; since: string; description: string; homesPowered: number
+}
+export interface RemoteReward {
+  id: string; title: string; value: string; detail: string; cost: number; cat: 'mobility' | 'shopping' | 'home' | 'community'; icon: string | null; photo: string | null
+}
+export interface Catalogue { townships: RemoteTownship[]; sites: RemoteSite[]; rewards: RemoteReward[] }
+
+export interface RemoteMe {
+  name: string
+  points: number
+  lifetime: number
+  township: string
+  mapMode: '3d' | '2d'
+  subs: { siteId: string; units: number[]; since: string }[]
+  redemptions: { id: string; rewardId: string; at: number; code: string }[]
+  activity: { id: string; title: string; points: number; at: number; type: 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle' }[]
+  checkins: string[]
+  trips: Trip[]
+}
+
 export const backendApi = {
   isConfigured,
+
+  /* app data */
+  getCatalogue: () => request<Catalogue>('/api/catalogue'),
+  getMe: () => request<RemoteMe>('/api/me'),
+  updateMe: (patch: { townshipId?: string; mapMode?: '3d' | '2d'; fullName?: string }) =>
+    request<RemoteMe>('/api/me', { method: 'PATCH', body: JSON.stringify(patch) }),
+  subscribe: (siteId: string, units: number[]) => post<{ points: number; me: RemoteMe }>('/api/subscriptions', { siteId, units }),
+  redeem: (rewardId: string, code: string) =>
+    post<{ redemption: RemoteMe['redemptions'][number]; me: RemoteMe }>('/api/redemptions', { rewardId, code }),
+  checkIn: () => post<RemoteMe>('/api/checkins'),
+  resetDemo: () => post<RemoteMe>('/api/demo/reset'),
+  logTrip: (mode: TripMode, path: GpsPoint[], source: 'gps' | 'demo') =>
+    post<{ trip: Trip; capped: boolean; me: RemoteMe }>('/api/green/trips', { mode, path, source }),
+
+  /* AI analyst tools */
   getPortfolioSummary: () => request<PortfolioSummary>('/api/portfolio/summary'),
   getRealizedReturn: () => request<RealizedReturn>('/api/returns/realized'),
-  getProjectedScenarios: (args: { amount: number; years: number }) =>
-    request<ScenarioSet>('/api/scenarios/projected', {
-      method: 'POST',
-      body: JSON.stringify(args),
-    }),
+  getProjectedScenarios: (args: { amount: number; years: number }) => post<ScenarioSet>('/api/scenarios/projected', args),
   getProjectPerformance: (projectId: string) =>
     request<ProjectPerformance>(`/api/projects/${encodeURIComponent(projectId)}/performance`),
   getEnvironmentalImpact: () => request<EnvironmentalImpact>('/api/impact/environmental'),
+
+  /* alerts */
   getActiveAlerts: () => request<Alert[]>('/api/alerts'),
-  markAlertRead: (id: string) =>
-    request<void>(`/api/alerts/${encodeURIComponent(id)}/read`, { method: 'POST' }),
+  markAlertRead: (id: string) => post<void>(`/api/alerts/${encodeURIComponent(id)}/read`),
+  markAllAlertsRead: () => post<void>('/api/alerts/read-all'),
+
+  /* Solar Analyst chat */
   sendMessage: (conversationId: string, text: string) =>
-    request<ChatMessage>(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-    }),
+    post<ChatMessage>(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, { text }),
   listMessages: (conversationId: string) =>
     request<ChatMessage[]>(`/api/conversations/${encodeURIComponent(conversationId)}/messages`),
-  seedDemoData: (conversationId: string) =>
-    request<{ conversationId: string; alerts: number; messages: number }>('/api/demo/seed', {
-      method: 'POST',
-      body: JSON.stringify({ conversationId }),
-    }),
+  clearMessages: (conversationId: string) =>
+    request<void>(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, { method: 'DELETE' }),
 }

@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { CalendarCheck, Car, Flower2, House, LayoutGrid, Leaf, PlugZap, Refrigerator, ShoppingBag, Sprout, SquareParking, Sun, Target, Ticket, TreePine, TrendingUp, Users } from 'lucide-react'
+import type { Catalogue } from './api/backend'
 import { asset } from './asset'
 
 export type SiteKind = 'subscription' | 'investment' | 'rooftop' | 'ev'
@@ -292,6 +293,46 @@ export const REWARDS: Reward[] = [
   { id: 'tree', title: 'Tree-Planting Donation', value: '1 tree', detail: 'Plant a native tree in Sime Darby Property townships, tagged in your name.', cost: 1000, cat: 'community', icon: Sprout, tint: '#2F8F6B', photo: P('tree_planting_hands') },
   { id: 'garden', title: 'Community Garden Plot', value: '3 months', detail: 'Your own plot at the township community garden.', cost: 1500, cat: 'community', icon: Flower2, tint: '#4E9A3F', photo: P('seedling_hands') },
 ]
+
+const REWARD_ICONS: Record<string, LucideIcon> = {
+  ticket: Ticket, 'plug-zap': PlugZap, 'shopping-bag': ShoppingBag, refrigerator: Refrigerator,
+  'square-parking': SquareParking, sprout: Sprout, 'flower-2': Flower2,
+}
+const CAT_STYLE: Record<RewardCat, { icon: LucideIcon; tint: string }> = {
+  mobility: { icon: Car, tint: '#3B6FD8' },
+  shopping: { icon: ShoppingBag, tint: '#E07A2E' },
+  home: { icon: House, tint: '#2C8FA8' },
+  community: { icon: Leaf, tint: '#2F8F6B' },
+}
+
+/** replace `target`'s items with `incoming` in place, keeping the existing order and appending new ids */
+function mergeInPlace<T extends { id: string }>(target: T[], incoming: T[]) {
+  const byId = new Map(incoming.map((x) => [x.id, x]))
+  const kept = target.filter((x) => byId.has(x.id)).map((x) => byId.get(x.id)!)
+  const added = incoming.filter((x) => !target.some((t) => t.id === x.id))
+  target.splice(0, target.length, ...kept, ...added)
+}
+
+/**
+ * Swap the built-in demo catalogue for the one served by the backend (/api/catalogue).
+ * Called once at startup, before the app renders, so every import of TOWNSHIPS / SITES / REWARDS sees it.
+ */
+export function hydrateCatalogue(c: Catalogue) {
+  mergeInPlace(TOWNSHIPS, c.townships.map((t) => ({ ...t, photo: t.photo ? asset(t.photo) : null })))
+  mergeInPlace(SITES, c.sites.map((s) => ({ ...s, block: s.block as [number, number] })))
+  const prev = new Map(REWARDS.map((r) => [r.id, r]))
+  mergeInPlace(REWARDS, c.rewards.map((r) => ({
+    id: r.id,
+    title: r.title,
+    value: r.value,
+    detail: r.detail,
+    cost: r.cost,
+    cat: r.cat,
+    icon: (r.icon && REWARD_ICONS[r.icon]) || prev.get(r.id)?.icon || CAT_STYLE[r.cat].icon,
+    tint: prev.get(r.id)?.tint ?? CAT_STYLE[r.cat].tint,
+    photo: r.photo ? asset(r.photo) : null,
+  })))
+}
 
 export const REWARD_CATS: { id: RewardCat | 'all'; label: string; icon: LucideIcon }[] = [
   { id: 'all', label: 'All', icon: LayoutGrid },

@@ -3,7 +3,8 @@ import { Bell, Check, ChevronRight, FileText, Globe2, HelpCircle, Landmark, Leaf
 import { createElement, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart, Ring } from '../components/Charts'
-import { Count, Hero, Page, Progress, Rise, Sheet } from '../components/ui'
+import { Count, Hero, initials, Page, Progress, Rise, Sheet } from '../components/ui'
+import { reloadAlerts } from '../components/AlertsButton'
 import { BADGES, KINDS, LEVELS, levelFor, MONTHS, siteById, townshipById, type SiteKind } from '../data'
 import { useStore } from '../store'
 import { asset } from '../asset'
@@ -48,9 +49,9 @@ export default function Me() {
 
       <Rise className="section overlap">
         <div className="card pad row">
-          <div className="avatar" style={{ width: 56, height: 56, fontSize: 19 }}>JD</div>
+          <div className="avatar" style={{ width: 56, height: 56, fontSize: 19 }}>{initials(store.name)}</div>
           <div className="grow">
-            <div style={{ fontWeight: 800, fontSize: 18 }}>Jane Doe</div>
+            <div style={{ fontWeight: 800, fontSize: 18 }}>{store.name}</div>
             <div className="muted small row" style={{ gap: 4 }}><MapPin size={12} /> {township.name} · Member since Jan 2024</div>
           </div>
           <span className="pill"><Star size={11} fill="currentColor" /> Lv {lvl.cur.level}</span>
@@ -204,7 +205,7 @@ export default function Me() {
               <ChevronRight size={16} className="muted" />
             </button>
           ))}
-          <button className="list-row" onClick={() => { store.reset(); store.toast('Demo data has been reset') }}>
+          <button className="list-row" onClick={() => { store.reset().then(() => { void reloadAlerts(); store.toast('Demo data has been reset') }).catch(() => {}) }}>
             <span className="ic sm grey"><RotateCcw size={16} /></span>
             <div className="grow"><div className="title">Reset demo data</div><div className="desc">Restore the prototype’s starting state</div></div>
           </button>

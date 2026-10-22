@@ -6,8 +6,10 @@ import { backendApi } from '../api/backend'
 import type { ChatMessage } from '../api/types'
 import { AttachmentView, ToolTrace } from '../components/chat/Cards'
 import { SAMPLE_CONVERSATION, SUGGESTIONS } from '../components/chat/sample'
+import { useStore } from '../store'
 
-const DEMO_CONVERSATION_ID = (import.meta.env.VITE_DEMO_CONVERSATION_ID as string | undefined)?.trim() || '00000000-0000-0000-0000-000000000001'
+/** the resident's Solar Analyst conversation (created by the backend on first use) */
+const CONVERSATION_ID = (import.meta.env.VITE_DEMO_CONVERSATION_ID as string | undefined)?.trim() || '00000000-0000-4000-8000-000000000001'
 
 /** tiny markdown: paragraphs, "- " bullet lists and **bold** */
 function Rich({ text }: { text: string }) {
@@ -91,6 +93,7 @@ export default function Assistant() {
   const scroller = useRef<HTMLDivElement>(null)
   const timers = useRef<number[]>([])
   const [error, setError] = useState<string | null>(null)
+  const { online, name } = useStore()
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   useEffect(() => {
@@ -98,57 +101,20 @@ export default function Assistant() {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })
   }, [messages, pending, streaming])
 
+  // online: show the saved conversation
   useEffect(() => {
-    if (!backendApi.isConfigured()) return
+    if (!online) return
     let live = true
-    backendApi.listMessages(DEMO_CONVERSATION_ID)
-      .then(async (rows) => {
-        if (!live) return
-        if (rows.length > 0) {
-          setMessages(rows)
-          return
-        }
-        const seeded = await backendApi.seedDemoData(DEMO_CONVERSATION_ID)
-        const loaded = await backendApi.listMessages(seeded.conversationId)
-        if (live) setMessages(loaded)
-      })
-      .catch(() => { if (live) setError('Could not load existing messages from backend.') })
+    backendApi.listMessages(CONVERSATION_ID)
+      .then((rows) => { if (live) setMessages(rows) })
+      .catch(() => { if (live) setError('Couldn’t load your conversation from the server.') })
     return () => { live = false }
-  }, [])
+  }, [online])
 
   const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)) }
 
-  const send = async (text: string) => {
-    const q = text.trim()
-    if (!q || pending || streaming) return
-    setInput('')
-    setError(null)
-
-    if (backendApi.isConfigured()) {
-      const userMsg: ChatMessage = { id: `u${Date.now()}`, role: 'user', content: q, createdAt: new Date().toISOString() }
-      setMessages((m) => [...m, userMsg])
-      setPending({ tools: [] })
-      try {
-        const reply = await backendApi.sendMessage(DEMO_CONVERSATION_ID, q)
-        setPending(null)
-        setMessages((m) => [...m, reply])
-        return
-      } catch {
-        setPending(null)
-        setError('Backend chat is not ready yet. Showing sample response mode.')
-      }
-    }
-
-    setMessages((m) => [...m, { id: `u${Date.now()}`, role: 'user', content: q, createdAt: new Date().toISOString() }])
-    const idx = SAMPLE_CONVERSATION.findIndex((m) => m.role === 'user' && m.content.toLowerCase() === q.toLowerCase())
-    const sample = idx >= 0 ? SAMPLE_CONVERSATION[idx + 1] : null
-    const reply: ChatMessage = sample
-      ? { ...sample, id: `a${Date.now()}` }
-      : {
-          id: `a${Date.now()}`, role: 'assistant', createdAt: new Date().toISOString(),
-          content: 'I’m not connected to live data yet, so I can’t answer that one. Once the Solar Kita backend is online, I’ll answer using **verified portfolio and project data** only.\n\nIn the meantime, try one of the suggested questions to preview how answers will look.',
-          suggestions: SUGGESTIONS.slice(0, 3),
-        }
+  /** show the tool trace, then type the reply out */
+  const play = (reply: ChatMessage) => {
     setPending({ tools: reply.toolCalls })
     later(() => {
       setPending(null)
@@ -161,7 +127,42 @@ export default function Assistant() {
         else { setStreaming(null); setMessages((m) => [...m, reply]) }
       }
       tick()
-    }, reply.toolCalls?.length ? 1100 : 600)
+    }, reply.toolCalls?.length ? 700 : 300)
+  }
+
+  const send = async (text: string) => {
+    const q = text.trim()
+    if (!q || pending || streaming) return
+    setInput('')
+    setError(null)
+    setMessages((m) => [...m, { id: `u${Date.now()}`, role: 'user', content: q, createdAt: new Date().toISOString() }])
+
+    if (online) {
+      setPending({ tools: [] })
+      try {
+        play(await backendApi.sendMessage(CONVERSATION_ID, q))
+      } catch (err) {
+        setPending(null)
+        setError(err instanceof Error ? err.message : 'The Solar Analyst couldn’t answer just now.')
+      }
+      return
+    }
+
+    const idx = SAMPLE_CONVERSATION.findIndex((m) => m.role === 'user' && m.content.toLowerCase() === q.toLowerCase())
+    const sample = idx >= 0 ? SAMPLE_CONVERSATION[idx + 1] : null
+    play(sample
+      ? { ...sample, id: `a${Date.now()}` }
+      : {
+          id: `a${Date.now()}`, role: 'assistant', createdAt: new Date().toISOString(),
+          content: 'I’m not connected to live data yet, so I can’t answer that one. Once the Solar Kita backend is online, I’ll answer using **verified portfolio and project data** only.\n\nIn the meantime, try one of the suggested questions to preview how answers will look.',
+          suggestions: SUGGESTIONS.slice(0, 3),
+        })
+  }
+
+  const clear = () => {
+    timers.current.forEach(clearTimeout)
+    setMessages([]); setPending(null); setStreaming(null); setError(null)
+    if (online) backendApi.clearMessages(CONVERSATION_ID).catch(() => setError('Couldn’t clear the conversation on the server.'))
   }
 
   const last = messages[messages.length - 1]
@@ -178,7 +179,7 @@ export default function Assistant() {
           <div className="row" style={{ gap: 4, fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}><ShieldCheck size={12} color="#1F8A5B" /> Answers from verified data only</div>
         </div>
         {messages.length > 0 && (
-          <button className="icon-btn" aria-label="New conversation" onClick={() => { timers.current.forEach(clearTimeout); setMessages([]); setPending(null); setStreaming(null) }}>
+          <button className="icon-btn" aria-label="New conversation" onClick={clear}>
             <RotateCcw size={17} />
           </button>
         )}
@@ -187,7 +188,7 @@ export default function Assistant() {
       {/* messages */}
       <div className="chat-scroll" ref={scroller}>
         {error && <div className="empty" style={{ marginBottom: 10 }}>{error}</div>}
-        {messages.length === 0 && !pending && !streaming && <Welcome onPick={send} />}
+        {messages.length === 0 && !pending && !streaming && <Welcome onPick={send} name={name.split(' ')[0]} />}
         <div className="col" style={{ gap: 14 }}>
           {messages.map((m) => <Bubble key={m.id} m={m} />)}
           <AnimatePresence>{pending && <Typing tools={pending.tools} />}</AnimatePresence>
@@ -219,7 +220,7 @@ export default function Assistant() {
   )
 }
 
-function Welcome({ onPick }: { onPick: (q: string) => void }) {
+function Welcome({ onPick, name }: { onPick: (q: string) => void; name: string }) {
   const Point = ({ icon, children }: { icon: ReactNode; children: ReactNode }) => (
     <div className="row" style={{ gap: 10, alignItems: 'flex-start', fontSize: 12.5, color: 'var(--ink-2)' }}>
       <span className="ic sm" style={{ width: 28, height: 28 }}>{icon}</span><span style={{ paddingTop: 5 }}>{children}</span>
@@ -229,7 +230,7 @@ function Welcome({ onPick }: { onPick: (q: string) => void }) {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '12px 2px 18px' }}>
       <div className="col" style={{ alignItems: 'center', textAlign: 'center' }}>
         <Avatar size={64} />
-        <h1 className="h1" style={{ fontSize: 22, marginTop: 14 }}>Hi Jane, I’m your <em>Solar Analyst</em></h1>
+        <h1 className="h1" style={{ fontSize: 22, marginTop: 14 }}>Hi {name}, I’m your <em>Solar Analyst</em></h1>
         <p className="sub" style={{ fontSize: 13, marginTop: 6, maxWidth: 300 }}>Ask me about your portfolio, Energy Savings Credits, project performance or environmental impact.</p>
       </div>
       <div className="card" style={{ padding: 14, marginTop: 18, display: 'grid', gap: 10 }}>

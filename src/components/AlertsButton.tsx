@@ -11,23 +11,27 @@ import { Seg, Sheet } from './ui'
 
 /* ---------- shared alerts state (the bell lives on every page, the sheet is mounted once) ---------- */
 const listeners = new Set<() => void>()
-let snap = { alerts: SAMPLE_ALERTS as Alert[], open: false }
+// with a backend the list starts empty and loads from /api/alerts; the local demo uses the sample alerts
+let snap = { alerts: (backendApi.isConfigured() ? [] : SAMPLE_ALERTS) as Alert[], open: false, online: false }
 const set = (next: Partial<typeof snap>) => { snap = { ...snap, ...next }; listeners.forEach((l) => l()) }
 const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l) } }
 const useAlertsState = () => useSyncExternalStore(subscribe, () => snap)
 
 export const openAlerts = () => set({ open: true })
+
+/** fetch the resident's alerts from the backend (no-op in the local demo) */
+export async function reloadAlerts() {
+  if (!snap.online) return
+  try { set({ alerts: await backendApi.getActiveAlerts() }) } catch { /* keep what we have */ }
+}
+
 const markRead = async (id?: string) => {
   set({ alerts: snap.alerts.map((a) => (!id || a.id === id ? { ...a, read: true } : a)) })
-  if (!backendApi.isConfigured()) return
+  if (!snap.online) return
   try {
-    if (id) {
-      await backendApi.markAlertRead(id)
-      return
-    }
-    await Promise.all(snap.alerts.map((a) => backendApi.markAlertRead(a.id)))
+    await (id ? backendApi.markAlertRead(id) : backendApi.markAllAlertsRead())
   } catch {
-    // Keep optimistic UI state in demo mode if API mark-read fails.
+    void reloadAlerts()
   }
 }
 
@@ -55,7 +59,7 @@ export function alertTarget(a: Alert, subscribed: (siteId: string) => boolean): 
   }
 }
 
-/** Bell with unread count; opens the notifications sheet. Sample alerts for now; will read from get_active_alerts. */
+/** Bell with unread count; opens the notifications sheet. */
 export default function AlertsButton() {
   const { alerts } = useAlertsState()
   const unread = alerts.filter((a) => !a.read).length
@@ -81,25 +85,22 @@ export function AlertsSheet() {
   const older = shown.filter((a) => !fresh.includes(a))
   const close = () => set({ open: false })
 
+  // online: load now, whenever the sheet opens, and every minute so new alerts show on the bell
   useEffect(() => {
-    if (!open || !backendApi.isConfigured()) return
-    let live = true
-    setLoading(true)
-    backendApi.getActiveAlerts()
-      .then(async (rows) => {
-        if (!live) return
-        if (rows.length > 0) {
-          set({ alerts: rows })
-          return
-        }
-        await backendApi.seedDemoData((import.meta.env.VITE_DEMO_CONVERSATION_ID as string | undefined)?.trim() || '00000000-0000-0000-0000-000000000001')
-        const seeded = await backendApi.getActiveAlerts()
-        if (live) set({ alerts: seeded })
-      })
-      .catch(() => { /* fallback to local sample alerts */ })
-      .finally(() => { if (live) setLoading(false) })
-    return () => { live = false }
-  }, [open])
+    if (!store.online) {
+      if (snap.online || !snap.alerts.length) set({ alerts: SAMPLE_ALERTS, online: false })
+      return
+    }
+    snap.online = true
+    void reloadAlerts()
+    const t = window.setInterval(() => { void reloadAlerts() }, 60_000)
+    return () => window.clearInterval(t)
+  }, [store.online])
+  useEffect(() => {
+    if (!open || !store.online) return
+    setLoading(!snap.alerts.length)
+    reloadAlerts().finally(() => setLoading(false))
+  }, [open, store.online])
 
   const go = (a: Alert) => {
     void markRead(a.id)

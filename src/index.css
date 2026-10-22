@@ -113,6 +113,15 @@ h1, h2, h3, h4, p { margin: 0; }
 .card.tap { transition: transform 0.25s var(--ease), border-color 0.25s; cursor: pointer; text-align: left; width: 100%; display: block; }
 .card.tap:active { transform: scale(0.985); }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+/* ---------- go green ---------- */
+.green-go {
+  width: 148px; height: 148px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  color: #fff; font-weight: 800; font-size: 14px; background: radial-gradient(circle at 35% 30%, #34b47a, #1f8a5b 70%);
+  box-shadow: 0 18px 36px -14px rgba(31, 138, 91, 0.8), 0 0 0 10px rgba(31, 138, 91, 0.1), 0 0 0 22px rgba(31, 138, 91, 0.05);
+}
+.green-route { margin-top: 12px; height: 150px; border-radius: 16px; background: repeating-linear-gradient(0deg, transparent 0 23px, rgba(0,0,0,.035) 23px 24px), repeating-linear-gradient(90deg, transparent 0 23px, rgba(0,0,0,.035) 23px 24px), #f4f6f2; border: 1px solid var(--line); overflow: hidden; }
 .row { display: flex; align-items: center; gap: 12px; }
 .between { justify-content: space-between; }
 .col { display: flex; flex-direction: column; }

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Check, ChevronRight, Leaf, Map, Star } from 'lucide-react'
+import { ArrowRight, Bike, Check, ChevronRight, Footprints, Leaf, Map, Star } from 'lucide-react'
 import { createElement, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProjectArt, TownPhoto } from '../components/Art'
@@ -103,6 +103,18 @@ export default function Home() {
           <InitiativeStrip sites={sites} activeId={featured.id} onPick={(s) => setFeaturedId(s.id)} />
         </Rise>
       )}
+
+      {/* ---- go green ---- */}
+      <Rise className="section" style={{ marginTop: 14 }}>
+        <Link to="/green" className="card pad row" style={{ gap: 14, background: 'linear-gradient(135deg, #e9f6ee 0%, #ffffff 70%)' }}>
+          <span className="ic lg green" style={{ position: 'relative' }}><Footprints size={22} /><Bike size={15} style={{ position: 'absolute', right: -4, bottom: -2, background: '#fff', borderRadius: 6, padding: 1 }} /></span>
+          <div className="grow">
+            <div style={{ fontWeight: 800, fontSize: 15 }}>Go Green: walk or cycle</div>
+            <div className="muted small" style={{ marginTop: 2 }}>Skip the car around {township.name}. Earn points for every kilometre and see the petrol you saved.</div>
+          </div>
+          <ChevronRight size={18} className="muted" />
+        </Link>
+      </Rise>
 
       {/* ---- points ---- */}
       <Rise className="section" style={{ marginTop: 14 }}>

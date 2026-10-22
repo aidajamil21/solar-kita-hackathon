@@ -1,5 +1,7 @@
-﻿import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { REWARDS, SUNSHINE, siteById, type Site } from './data'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ApiError, backendApi, type RemoteMe } from './api/backend'
+import { hydrateCatalogue, REWARDS, SUNSHINE, siteById, townshipById, type Site } from './data'
+import { checkTrip, GREEN, greenPointsToday, type GpsPoint, type Trip, type TripMode } from './green'
 
 export type MapMode = '3d' | '2d'
 
@@ -18,7 +20,7 @@ export interface Activity {
   type: ActivityType
 }
 
-export type ActivityType = 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin'
+export type ActivityType = 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle'
 
 export interface Redemption {
   id: string
@@ -28,6 +30,8 @@ export interface Redemption {
 }
 
 interface State {
+  /** resident's display name */
+  name: string
   points: number
   lifetime: number
   township: string
@@ -37,14 +41,20 @@ interface State {
   checkins: string[]
   /** explore map renderer: the GPU-heavy 3D scene or a light flat 2D map */
   mapMode: MapMode
+  /** Go Green walks and rides, newest first */
+  trips: Trip[]
 }
+
+export interface TripResult { trip: Trip; capped: boolean }
 
 const DAY = 86_400_000
 const now = Date.now()
 
 const SEED: State = {
+  name: 'Jane Doe',
   points: 1250,
-  lifetime: 1250,
+  // 2,050 earned - 800 redeemed = 1,250 (matches server/seed.sql)
+  lifetime: 2050,
   township: 'elmina',
   subs: [
     { siteId: 'elmina-subscription', units: [3], since: '2024-01' },
@@ -55,15 +65,25 @@ const SEED: State = {
   ],
   activity: [
     { id: 'a1', title: 'Monthly solar bonus', points: 50, at: now - 2 * DAY, type: 'bonus' },
-    { id: 'a2', title: 'Joined â€œLights Out Hourâ€', points: 120, at: now - 6 * DAY, type: 'event' },
+    { id: 'a2', title: 'Joined “Lights Out Hour”', points: 120, at: now - 6 * DAY, type: 'event' },
     { id: 'a3', title: 'Redeemed EV Charging Credit', points: -800, at: now - 12 * DAY, type: 'redeem' },
     { id: 'a4', title: 'Energy-saving quiz', points: 50, at: now - 15 * DAY, type: 'quiz' },
   ],
   checkins: [],
   mapMode: '3d',
+  trips: [],
 }
 
-const KEY = 'solar-kita-v3'
+const KEY = 'solar-kita-v4'
+
+/** set before render when the backend answered at startup (see main.tsx); the store then reads and writes through the API */
+let remoteStart: RemoteMe | null = null
+export function startWithBackend(me: RemoteMe) { remoteStart = me }
+
+const fromRemote = (me: RemoteMe): State => ({ ...me, trips: me.trips ?? [] })
+
+/** today's date as YYYY-MM-DD in local time */
+const today = () => new Date().toLocaleDateString('en-CA')
 
 function load(): State {
   try {
@@ -127,12 +147,16 @@ export function nextPayoutDate() {
 interface Toast { id: number; text: string }
 
 interface Store extends State {
+  /** true when data comes from the Solar Kita backend (otherwise it's the local demo) */
+  online: boolean
   subscribe: (siteId: string, units: number[]) => number
   redeem: (rewardId: string) => Redemption | null
   checkIn: () => boolean
   setTownship: (id: string) => void
   setMapMode: (mode: MapMode) => void
-  reset: () => void
+  reset: () => Promise<void>
+  /** save a walk/ride; rejects with a message when it doesn't qualify */
+  logTrip: (mode: TripMode, path: GpsPoint[], source: 'gps' | 'demo') => Promise<TripResult>
   toast: (text: string) => void
   toasts: Toast[]
   takenFor: (site: Site) => Set<number>
@@ -142,19 +166,34 @@ interface Store extends State {
 const Ctx = createContext<Store | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<State>(load)
+  const [online] = useState(() => remoteStart !== null)
+  const [state, setState] = useState<State>(() => (remoteStart ? fromRemote(remoteStart) : load()))
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [, setCatalogueVersion] = useState(0)
   const tid = useRef(0)
 
+  // the local demo keeps its state in the browser; online state lives in the database
   useEffect(() => {
+    if (online) return
     try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* ignore */ }
-  }, [state])
+  }, [state, online])
 
   const toast = useCallback((text: string) => {
     const id = ++tid.current
     setToasts((t) => [...t, { id, text }])
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2600)
   }, [])
+
+  /* ---- server sync: every change is applied locally first, then confirmed by the API ---- */
+  const apply = useCallback((me: RemoteMe) => setState(fromRemote(me)), [])
+  const refreshCatalogue = useCallback(() => {
+    backendApi.getCatalogue().then((c) => { hydrateCatalogue(c); setCatalogueVersion((v) => v + 1) }).catch(() => {})
+  }, [])
+  const failed = useCallback((err: unknown) => {
+    toast(err instanceof ApiError ? err.message : 'Couldn’t save that change')
+    backendApi.getMe().then(apply).catch(() => {})
+    if (err instanceof ApiError && err.status === 409) refreshCatalogue()
+  }, [toast, apply, refreshCatalogue])
 
   const subscribe = useCallback((siteId: string, units: number[]) => {
     const site = siteById(siteId)!
@@ -174,8 +213,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         activity: [{ id: `a${Date.now()}`, title: `Subscribed to ${site.name}`, points: pts, at: Date.now(), type: 'subscribe' }, ...s.activity],
       }
     })
+    if (online) backendApi.subscribe(siteId, units).then((r) => apply(r.me)).catch(failed)
     return pts
-  }, [])
+  }, [online, apply, failed])
 
   const redeem = useCallback((rewardId: string) => {
     const r = REWARDS.find((x) => x.id === rewardId)!
@@ -192,35 +232,81 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       redemptions: [red, ...s.redemptions],
       activity: [{ id: `a${Date.now()}`, title: `Redeemed ${r.title}`, points: -r.cost, at: Date.now(), type: 'redeem' }, ...s.activity],
     }))
+    if (online) backendApi.redeem(rewardId, red.code).then((res) => apply(res.me)).catch(failed)
     return red
-  }, [state.points])
+  }, [state.points, online, apply, failed])
 
   const checkIn = useCallback(() => {
-    const today = new Date().toDateString()
-    if (state.checkins.includes(today)) return false
+    const day = today()
+    if (state.checkins.includes(day)) return false
     setState((s) => ({
       ...s,
       points: s.points + 10,
       lifetime: s.lifetime + 10,
-      checkins: [...s.checkins, today],
+      checkins: [day, ...s.checkins],
       activity: [{ id: `a${Date.now()}`, title: 'Daily sun check-in', points: 10, at: Date.now(), type: 'checkin' }, ...s.activity],
     }))
+    if (online) backendApi.checkIn().then(apply).catch(failed)
     return true
-  }, [state.checkins])
+  }, [state.checkins, online, apply, failed])
+
+  const setTownship = useCallback((id: string) => {
+    setState((s) => ({ ...s, township: id }))
+    if (online) backendApi.updateMe({ townshipId: id }).then(apply).catch(failed)
+  }, [online, apply, failed])
+
+  const setMapMode = useCallback((mapMode: MapMode) => {
+    setState((s) => ({ ...s, mapMode }))
+    if (online) backendApi.updateMe({ mapMode }).then(apply).catch(failed)
+  }, [online, apply, failed])
+
+  const reset = useCallback(async () => {
+    if (!online) { setState((s) => ({ ...SEED, mapMode: s.mapMode })); return }
+    try { apply(await backendApi.resetDemo()); refreshCatalogue() } catch (err) { failed(err); throw err }
+  }, [online, apply, failed, refreshCatalogue])
+
+  const logTrip = useCallback(async (mode: TripMode, path: GpsPoint[], source: 'gps' | 'demo'): Promise<TripResult> => {
+    if (online) {
+      const res = await backendApi.logTrip(mode, path, source)
+      apply(res.me)
+      return { trip: res.trip, capped: res.capped }
+    }
+    // local demo: same checks as the server
+    const town = townshipById(state.township)
+    const c = checkTrip(path, mode, town, town.name)
+    if (c.issue) throw new Error(c.issue)
+    const points = Math.max(0, Math.min(c.points, GREEN.dailyCap - greenPointsToday(state.trips)))
+    const trip: Trip = {
+      id: `t${Date.now()}`, mode, source, at: path[0].t, distanceKm: c.km, durationMin: c.minutes, points,
+      co2Kg: c.co2Kg, petrolL: c.petrolL, path: path.map((p) => [p.lat, p.lon] as [number, number]),
+    }
+    setState((s) => ({
+      ...s,
+      trips: [trip, ...s.trips],
+      points: s.points + points,
+      lifetime: s.lifetime + points,
+      activity: points
+        ? [{ id: `a${Date.now()}`, title: `${mode === 'walk' ? 'Walked' : 'Cycled'} ${c.km.toFixed(1)} km in ${town.name}`, points, at: Date.now(), type: mode }, ...s.activity]
+        : s.activity,
+    }))
+    return { trip, capped: points < c.points }
+  }, [online, apply, state.township, state.trips])
 
   const store = useMemo<Store>(() => ({
     ...state,
+    online,
     toasts,
     toast,
     subscribe,
     redeem,
     checkIn,
-    setTownship: (id) => setState((s) => ({ ...s, township: id })),
-    setMapMode: (mapMode) => setState((s) => ({ ...s, mapMode })),
-    reset: () => setState((s) => ({ ...SEED, mapMode: s.mapMode })),
+    setTownship,
+    setMapMode,
+    reset,
+    logTrip,
     takenFor: (site) => new Set(site.taken),
     mineFor: (site) => new Set(state.subs.find((x) => x.siteId === site.id)?.units ?? []),
-  }), [state, toasts, toast, subscribe, redeem, checkIn])
+  }), [state, online, toasts, toast, subscribe, redeem, checkIn, setTownship, setMapMode, reset, logTrip])
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>
 }

@@ -10,6 +10,7 @@ import Explore from './pages/Explore'
 import Home from './pages/Home'
 import Me from './pages/Me'
 import Rewards from './pages/Rewards'
+import Green from './pages/Green'
 import Solar from './pages/Solar'
 import SolarDetail from './pages/SolarDetail'
 import { StoreProvider } from './store'
@@ -34,6 +35,7 @@ function Screens() {
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/me" element={<Me />} />
           <Route path="/assistant" element={<Assistant />} />
+          <Route path="/green" element={<Green />} />
         </Routes>
       </motion.div>
     </AnimatePresence>

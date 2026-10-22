@@ -24,7 +24,11 @@ export function Coin({ size = 18 }: { size?: number }) {
 }
 
 /* ---------- top bar ---------- */
+/** "Jane Doe" -> "JD" */
+export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || '?'
+
 export function TopBar({ title = 'Solar Kita', tagline = 'Community Energy-as-a-Service' }: { title?: string; tagline?: string }) {
+  const { name } = useStore()
   return (
     <div className="topbar">
       <Link to="/" className="brand">
@@ -37,7 +41,7 @@ export function TopBar({ title = 'Solar Kita', tagline = 'Community Energy-as-a-
       </Link>
       <div className="topbar-actions">
         <AlertsButton />
-        <Link to="/me" className="avatar" aria-label="Profile">JD</Link>
+        <Link to="/me" className="avatar" aria-label="Profile">{initials(name)}</Link>
       </div>
     </div>
   )

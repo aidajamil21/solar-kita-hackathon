@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, CalendarCheck, ChevronRight, Clock, Copy, Gift, History, Lock, Star, Sun, TrendingUp, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Bike, CalendarCheck, ChevronRight, Clock, Copy, Footprints, Gift, History, Lock, Star, Sun, TrendingUp, type LucideIcon } from 'lucide-react'
 import { createElement, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { VoucherArt } from '../components/Art'
@@ -15,7 +15,7 @@ const BANNERS = [
 ]
 
 const ACTIVITY_ICON: Record<ActivityType, LucideIcon> = {
-  subscribe: Sun, redeem: Gift, bonus: Star, event: CalendarCheck, quiz: TrendingUp, checkin: CalendarCheck,
+  subscribe: Sun, redeem: Gift, bonus: Star, event: CalendarCheck, quiz: TrendingUp, checkin: CalendarCheck, walk: Footprints, cycle: Bike,
 }
 
 export default function Rewards() {
@@ -159,7 +159,16 @@ export default function Rewards() {
       <Rise className="band">
         <h2 className="h2">How to earn more points</h2>
         <div className="band-sub">Take part in clean energy initiatives across your township.</div>
-        <div className="grid-2" style={{ marginTop: 16 }}>
+        <motion.button whileTap={{ scale: 0.98 }} className="card row" style={{ padding: 14, textAlign: 'left', width: '100%', marginTop: 16, gap: 12 }} onClick={() => nav('/green')}>
+          <span className="ic green"><Footprints size={20} /></span>
+          <div className="grow">
+            <div style={{ fontWeight: 800, fontSize: 14 }}>Go Green: walk or cycle</div>
+            <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>Leave the car at home and earn points for every kilometre around your township.</div>
+            <span className="pill green" style={{ marginTop: 8 }}><Coin size={12} /> 1 point per 3 km walked</span>
+          </div>
+          <ChevronRight size={16} className="muted" />
+        </motion.button>
+        <div className="grid-2" style={{ marginTop: 10 }}>
           {EARN_WAYS.map((w) => (
             <motion.button key={w.id} whileTap={{ scale: 0.97 }} className="card" style={{ padding: 14, textAlign: 'left' }} onClick={() => (w.to ? nav(w.to) : null)}>
               <div className="row between">

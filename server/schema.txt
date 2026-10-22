@@ -1,0 +1,723 @@
+-- ============================================================
+-- Solar Kita / Community Solar - Supabase baseline schema v1
+-- Run once in a NEW Supabase project using SQL Editor.
+-- After running: configure Auth, test RLS, and deploy trusted
+-- Edge Functions before accepting real money or real investments.
+-- ============================================================
+
+create extension if not exists pgcrypto;
+
+-- ----------------------------
+-- 1. Types
+-- ----------------------------
+create type public.site_kind as enum ('subscription', 'investment', 'rooftop', 'ev');
+create type public.project_status as enum ('pending', 'active', 'maintenance', 'closed');
+create type public.subscription_status as enum ('pending', 'active', 'cancelled');
+create type public.activity_type as enum ('subscribe', 'redeem', 'bonus', 'event', 'quiz', 'checkin');
+create type public.reward_cat as enum ('mobility', 'shopping', 'home', 'community');
+create type public.financial_status as enum ('pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded');
+create type public.payout_status as enum ('pending', 'processing', 'completed', 'failed', 'cancelled');
+create type public.alert_severity as enum ('info', 'success', 'warning', 'critical');
+create type public.alert_type as enum (
+  'contribution_recorded', 'payout_completed', 'payout_overdue',
+  'low_generation', 'project_outage', 'funding_milestone',
+  'rewards_milestone', 'project_report', 'sensor_offline'
+);
+create type public.detection_type as enum ('database_event', 'scheduled_check', 'monitoring_rule');
+create type public.notification_channel as enum ('in_app', 'email', 'push');
+create type public.delivery_status as enum ('pending', 'processing', 'sent', 'failed', 'cancelled');
+
+-- ----------------------------
+-- 2. Public catalogue
+-- ----------------------------
+create table public.townships (
+  id text primary key,
+  name text not null,
+  area text not null,
+  state text not null,
+  latitude numeric(9,6),
+  longitude numeric(9,6),
+  photo_url text,
+  community_mwh numeric(14,3) not null default 0 check (community_mwh >= 0),
+  residents_count integer not null default 0 check (residents_count >= 0),
+  -- frontend map: generator seed and {lake, park, towers} blocks on the 4x4 grid
+  map_seed integer,
+  map_layout jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table public.sites (
+  id text primary key,
+  township_id text not null references public.townships(id) on delete restrict,
+  kind public.site_kind not null,
+  name text not null,
+  description text,
+  price_per_unit numeric(14,2) not null check (price_per_unit >= 0),
+  return_low_pct numeric(7,3),
+  return_high_pct numeric(7,3),
+  points_per_unit integer not null default 0 check (points_per_unit >= 0),
+  co2_kg_per_unit_year numeric(12,3) not null default 0 check (co2_kg_per_unit_year >= 0),
+  kwp_per_unit numeric(12,4) not null default 0 check (kwp_per_unit >= 0),
+  total_units integer not null check (total_units > 0),
+  capacity_mw numeric(12,3) not null default 0 check (capacity_mw >= 0),
+  generation_target_kwh_day numeric(14,3) check (generation_target_kwh_day >= 0),
+  homes_powered integer not null default 0 check (homes_powered >= 0),
+  status public.project_status not null default 'pending',
+  since_date date,
+  -- frontend layout: unit grid columns, block on the township map, live output %
+  grid_cols integer not null default 1 check (grid_cols > 0),
+  map_x smallint check (map_x between 0 and 3),
+  map_z smallint check (map_z between 0 and 3),
+  output_pct numeric(5,2) check (output_pct between 0 and 100),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint valid_return_range check (
+    return_low_pct is null or return_high_pct is null or return_high_pct >= return_low_pct
+  )
+);
+
+-- ----------------------------
+-- 3. Resident profiles
+-- ----------------------------
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text,
+  township_id text references public.townships(id) on delete set null,
+  app_role text not null default 'resident' check (app_role in ('resident', 'management')),
+  points_balance integer not null default 0 check (points_balance >= 0),
+  points_lifetime integer not null default 0 check (points_lifetime >= 0),
+  map_mode text not null default '3d' check (map_mode in ('2d', '3d')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- ----------------------------
+-- 4. Subscriptions and claimed units
+-- A subscription describes a holding/reservation, not proof of payment.
+-- ----------------------------
+create table public.subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete restrict,
+  site_id text not null references public.sites(id) on delete restrict,
+  since_month date not null check (extract(day from since_month) = 1),
+  status public.subscription_status not null default 'pending',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (id, site_id)
+);
+
+create index subscriptions_user_created_idx
+  on public.subscriptions(user_id, created_at desc);
+create index subscriptions_site_status_idx
+  on public.subscriptions(site_id, status);
+
+create table public.subscription_units (
+  subscription_id uuid not null,
+  site_id text not null,
+  unit_index integer not null check (unit_index >= 0),
+  created_at timestamptz not null default now(),
+  primary key (subscription_id, unit_index),
+  unique (site_id, unit_index),
+  foreign key (subscription_id, site_id)
+    references public.subscriptions(id, site_id) on delete cascade
+);
+
+create or replace function public.validate_subscription_unit()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  max_units integer;
+begin
+  select s.total_units into max_units
+  from public.sites s
+  where s.id = new.site_id;
+
+  if max_units is null then
+    raise exception 'Unknown solar site';
+  end if;
+
+  if new.unit_index < 0 or new.unit_index >= max_units then
+    raise exception 'Unit index is outside the site capacity';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger validate_subscription_unit_before_write
+before insert or update on public.subscription_units
+for each row execute function public.validate_subscription_unit();
+
+-- ----------------------------
+-- 5. Financial records
+-- Only trusted backend/payment processing should write these tables.
+-- ----------------------------
+create table public.contributions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete restrict,
+  site_id text not null references public.sites(id) on delete restrict,
+  subscription_id uuid references public.subscriptions(id) on delete restrict,
+  amount numeric(14,2) not null check (amount > 0),
+  currency text not null default 'MYR' check (currency = 'MYR'),
+  status public.financial_status not null default 'pending',
+  external_reference text unique,
+  contributed_at timestamptz not null default now(),
+  settled_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint settled_time_required check (status <> 'completed' or settled_at is not null)
+);
+
+create table public.payouts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete restrict,
+  site_id text not null references public.sites(id) on delete restrict,
+  subscription_id uuid references public.subscriptions(id) on delete restrict,
+  amount numeric(14,2) not null check (amount > 0),
+  currency text not null default 'MYR' check (currency = 'MYR'),
+  status public.payout_status not null default 'pending',
+  due_at timestamptz,
+  paid_at timestamptz,
+  external_reference text unique,
+  created_at timestamptz not null default now(),
+  constraint paid_time_required check (status <> 'completed' or paid_at is not null)
+);
+
+create index contributions_user_date_idx
+  on public.contributions(user_id, contributed_at desc);
+create index contributions_site_status_idx
+  on public.contributions(site_id, status);
+create index payouts_user_date_idx
+  on public.payouts(user_id, created_at desc);
+create index payouts_due_status_idx
+  on public.payouts(due_at, status);
+
+-- ----------------------------
+-- 6. Rewards, points ledger, redemptions and check-ins
+-- ----------------------------
+create table public.rewards (
+  id text primary key,
+  title text not null,
+  value_label text not null,
+  detail text not null,
+  cost_points integer not null check (cost_points > 0),
+  category public.reward_cat not null,
+  icon text,
+  photo_url text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table public.point_ledger (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete restrict,
+  activity public.activity_type not null,
+  title text not null,
+  points_delta integer not null check (points_delta <> 0),
+  idempotency_key text unique,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index point_ledger_user_date_idx
+  on public.point_ledger(user_id, created_at desc);
+
+create table public.redemptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete restrict,
+  reward_id text not null references public.rewards(id) on delete restrict,
+  points_spent integer not null check (points_spent > 0),
+  redemption_code text not null unique default encode(gen_random_bytes(12), 'hex'),
+  status text not null default 'issued' check (status in ('issued', 'used', 'cancelled')),
+  redeemed_at timestamptz not null default now()
+);
+
+create index redemptions_user_date_idx
+  on public.redemptions(user_id, redeemed_at desc);
+
+create table public.daily_checkins (
+  user_id uuid not null references public.profiles(id) on delete restrict,
+  checkin_date date not null default current_date,
+  created_at timestamptz not null default now(),
+  primary key (user_id, checkin_date)
+);
+
+-- ----------------------------
+-- 7. Project monitoring and alert incidents
+-- ----------------------------
+create table public.solar_readings (
+  id bigint generated always as identity primary key,
+  site_id text not null references public.sites(id) on delete cascade,
+  measured_at timestamptz not null,
+  generation_kwh numeric(14,4) not null check (generation_kwh >= 0),
+  expected_kwh numeric(14,4) check (expected_kwh >= 0),
+  source text not null default 'simulated',
+  created_at timestamptz not null default now(),
+  unique (site_id, measured_at, source)
+);
+
+create index solar_readings_site_time_idx
+  on public.solar_readings(site_id, measured_at desc);
+
+create table public.alert_incidents (
+  id uuid primary key default gen_random_uuid(),
+  site_id text references public.sites(id) on delete set null,
+  incident_key text not null unique,
+  alert_type public.alert_type not null,
+  severity public.alert_severity not null,
+  title text not null,
+  body text not null,
+  status text not null default 'open' check (status in ('open', 'resolved', 'suppressed')),
+  first_detected_at timestamptz not null default now(),
+  last_detected_at timestamptz not null default now(),
+  resolved_at timestamptz,
+  metadata jsonb not null default '{}'::jsonb
+);
+
+create table public.alerts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  incident_id uuid references public.alert_incidents(id) on delete set null,
+  type public.alert_type not null,
+  severity public.alert_severity not null,
+  title text not null,
+  body text not null,
+  site_id text references public.sites(id) on delete set null,
+  detection public.detection_type not null default 'database_event',
+  created_at timestamptz not null default now()
+);
+
+create index alerts_user_created_idx
+  on public.alerts(user_id, created_at desc);
+
+create table public.alert_reads (
+  alert_id uuid not null references public.alerts(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  read_at timestamptz not null default now(),
+  primary key (alert_id, user_id)
+);
+
+create table public.notification_preferences (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  in_app_enabled boolean not null default true,
+  email_enabled boolean not null default false,
+  push_enabled boolean not null default false,
+  category_preferences jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create table public.notification_deliveries (
+  id uuid primary key default gen_random_uuid(),
+  alert_id uuid not null references public.alerts(id) on delete cascade,
+  channel public.notification_channel not null,
+  status public.delivery_status not null default 'pending',
+  attempts integer not null default 0 check (attempts >= 0),
+  next_attempt_at timestamptz not null default now(),
+  sent_at timestamptz,
+  last_error text,
+  created_at timestamptz not null default now(),
+  unique (alert_id, channel)
+);
+
+create index notification_pending_idx
+  on public.notification_deliveries(status, next_attempt_at);
+
+-- ----------------------------
+-- 8. AI Analyst conversation history
+-- ----------------------------
+create table public.conversations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  title text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations(id) on delete cascade,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null,
+  tool_calls jsonb,
+  attachments jsonb,
+  suggestions text[],
+  created_at timestamptz not null default now()
+);
+
+create index messages_conversation_date_idx
+  on public.messages(conversation_id, created_at);
+
+-- ----------------------------
+-- 9. Updated-at and profile creation triggers
+-- ----------------------------
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function public.set_updated_at();
+
+create trigger sites_set_updated_at
+before update on public.sites
+for each row execute function public.set_updated_at();
+
+create trigger subscriptions_set_updated_at
+before update on public.subscriptions
+for each row execute function public.set_updated_at();
+
+create trigger conversations_set_updated_at
+before update on public.conversations
+for each row execute function public.set_updated_at();
+
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, full_name)
+  values (new.id, nullif(new.raw_user_meta_data ->> 'full_name', ''))
+  on conflict (id) do nothing;
+
+  insert into public.notification_preferences (user_id)
+  values (new.id)
+  on conflict (user_id) do nothing;
+
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_auth_user();
+
+-- ----------------------------
+-- 10. Secure points and check-in functions
+-- Do not grant these to anon. Authenticated users may execute only
+-- functions that award fixed, server-defined points.
+-- ----------------------------
+create or replace function public.apply_points(
+  p_user_id uuid,
+  p_delta integer,
+  p_activity public.activity_type,
+  p_title text,
+  p_idempotency_key text,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+  v_balance integer;
+begin
+  if p_delta = 0 then
+    raise exception 'Points delta cannot be zero';
+  end if;
+
+  -- Lock profile row so concurrent redemptions cannot overspend.
+  select points_balance into v_balance
+  from public.profiles
+  where id = p_user_id
+  for update;
+
+  if not found then
+    raise exception 'Profile not found';
+  end if;
+
+  if v_balance + p_delta < 0 then
+    raise exception 'Insufficient points';
+  end if;
+
+  insert into public.point_ledger
+    (user_id, activity, title, points_delta, idempotency_key, metadata)
+  values
+    (p_user_id, p_activity, p_title, p_delta, p_idempotency_key, coalesce(p_metadata, '{}'::jsonb))
+  on conflict (idempotency_key) do nothing
+  returning id into v_id;
+
+  if v_id is null then
+    return null; -- already processed; caller should treat as duplicate
+  end if;
+
+  update public.profiles
+  set points_balance = points_balance + p_delta,
+      points_lifetime = points_lifetime + greatest(p_delta, 0)
+  where id = p_user_id;
+
+  return v_id;
+end;
+$$;
+
+create or replace function public.check_in_today()
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_inserted uuid;
+begin
+  if v_user is null then
+    raise exception 'Authentication required';
+  end if;
+
+  insert into public.daily_checkins(user_id, checkin_date)
+  values (v_user, (now() at time zone 'Asia/Kuala_Lumpur')::date)
+  on conflict do nothing;
+
+  if not found then
+    raise exception 'Already checked in today';
+  end if;
+
+  v_inserted := public.apply_points(
+    v_user, 10, 'checkin', 'Daily check-in',
+    'checkin:' || v_user::text || ':' ||
+      (now() at time zone 'Asia/Kuala_Lumpur')::date::text,
+    jsonb_build_object('source', 'daily_checkin')
+  );
+
+  return v_inserted;
+end;
+$$;
+
+create or replace function public.redeem_reward(p_reward_id text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_reward public.rewards%rowtype;
+  v_redemption_id uuid;
+begin
+  if v_user is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select * into v_reward
+  from public.rewards
+  where id = p_reward_id and active = true
+  for share;
+
+  if not found then
+    raise exception 'Reward unavailable';
+  end if;
+
+  -- apply_points locks the profile row and rejects overspending.
+  perform public.apply_points(
+    v_user, -v_reward.cost_points, 'redeem',
+    'Redeemed reward: ' || v_reward.title,
+    'redeem:' || gen_random_uuid()::text,
+    jsonb_build_object('reward_id', v_reward.id)
+  );
+
+  insert into public.redemptions(user_id, reward_id, points_spent)
+  values (v_user, v_reward.id, v_reward.cost_points)
+  returning id into v_redemption_id;
+
+  return v_redemption_id;
+end;
+$$;
+
+-- ----------------------------
+-- 11. Row Level Security
+-- ----------------------------
+alter table public.profiles enable row level security;
+alter table public.townships enable row level security;
+alter table public.sites enable row level security;
+alter table public.subscriptions enable row level security;
+alter table public.subscription_units enable row level security;
+alter table public.contributions enable row level security;
+alter table public.payouts enable row level security;
+alter table public.rewards enable row level security;
+alter table public.point_ledger enable row level security;
+alter table public.redemptions enable row level security;
+alter table public.daily_checkins enable row level security;
+alter table public.solar_readings enable row level security;
+alter table public.alert_incidents enable row level security;
+alter table public.alerts enable row level security;
+alter table public.alert_reads enable row level security;
+alter table public.notification_preferences enable row level security;
+alter table public.notification_deliveries enable row level security;
+alter table public.conversations enable row level security;
+alter table public.messages enable row level security;
+
+-- Public read-only catalogue
+create policy townships_read_all on public.townships
+for select to anon, authenticated using (true);
+
+create policy sites_read_all on public.sites
+for select to anon, authenticated using (true);
+
+create policy rewards_read_active on public.rewards
+for select to anon, authenticated using (active = true);
+
+-- Profiles: residents can read own profile and update only safe columns.
+create policy profiles_select_own on public.profiles
+for select to authenticated using (id = (select auth.uid()));
+
+create policy profiles_update_own on public.profiles
+for update to authenticated using (id = (select auth.uid()))
+with check (id = (select auth.uid()));
+
+revoke insert, update, delete on public.profiles from anon, authenticated;
+grant select on public.profiles to authenticated;
+grant update (full_name, township_id, map_mode) on public.profiles to authenticated;
+
+-- Subscription and unit rows: owner can read only; trusted backend writes.
+create policy subscriptions_select_own on public.subscriptions
+for select to authenticated using (user_id = (select auth.uid()));
+
+create policy subscription_units_select_own on public.subscription_units
+for select to authenticated using (
+  exists (
+    select 1 from public.subscriptions s
+    where s.id = subscription_id and s.user_id = (select auth.uid())
+  )
+);
+
+revoke insert, update, delete on public.subscriptions, public.subscription_units
+from anon, authenticated;
+grant select on public.subscriptions, public.subscription_units to authenticated;
+
+-- Financial records: owners read their own records; no client writes.
+create policy contributions_select_own on public.contributions
+for select to authenticated using (user_id = (select auth.uid()));
+
+create policy payouts_select_own on public.payouts
+for select to authenticated using (user_id = (select auth.uid()));
+
+revoke insert, update, delete on public.contributions, public.payouts
+from anon, authenticated;
+grant select on public.contributions, public.payouts to authenticated;
+
+-- Points and redemptions: owners read; writes only through trusted functions.
+create policy point_ledger_select_own on public.point_ledger
+for select to authenticated using (user_id = (select auth.uid()));
+
+create policy redemptions_select_own on public.redemptions
+for select to authenticated using (user_id = (select auth.uid()));
+
+create policy daily_checkins_select_own on public.daily_checkins
+for select to authenticated using (user_id = (select auth.uid()));
+
+revoke insert, update, delete on public.point_ledger, public.redemptions, public.daily_checkins
+from anon, authenticated;
+grant select on public.point_ledger, public.redemptions, public.daily_checkins to authenticated;
+
+-- Solar readings: public aggregate/demo telemetry only. Do not put private data here.
+create policy solar_readings_read_authenticated on public.solar_readings
+for select to authenticated using (true);
+revoke insert, update, delete on public.solar_readings from anon, authenticated;
+grant select on public.solar_readings to authenticated;
+
+-- Incidents are internal; residents see only their generated alerts.
+revoke all on public.alert_incidents from anon, authenticated;
+create policy alerts_select_own on public.alerts
+for select to authenticated using (user_id = (select auth.uid()));
+revoke insert, update, delete on public.alerts from anon, authenticated;
+grant select on public.alerts to authenticated;
+
+create policy alert_reads_select_own on public.alert_reads
+for select to authenticated using (user_id = (select auth.uid()));
+create policy alert_reads_insert_own on public.alert_reads
+for insert to authenticated with check (user_id = (select auth.uid()));
+create policy alert_reads_delete_own on public.alert_reads
+for delete to authenticated using (user_id = (select auth.uid()));
+revoke update on public.alert_reads from anon, authenticated;
+grant select, insert, delete on public.alert_reads to authenticated;
+
+create policy notification_preferences_own on public.notification_preferences
+for all to authenticated
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
+revoke insert, update, delete on public.notification_preferences from anon, authenticated;
+grant select on public.notification_preferences to authenticated;
+grant update (in_app_enabled, email_enabled, push_enabled, category_preferences)
+on public.notification_preferences to authenticated;
+
+revoke all on public.notification_deliveries from anon, authenticated;
+
+-- Conversations/messages: owner can read and create their own chat history.
+create policy conversations_owner_select on public.conversations
+for select to authenticated using (user_id = (select auth.uid()));
+create policy conversations_owner_insert on public.conversations
+for insert to authenticated with check (user_id = (select auth.uid()));
+create policy conversations_owner_update on public.conversations
+for update to authenticated using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
+
+create policy messages_owner_select on public.messages
+for select to authenticated using (
+  exists (
+    select 1 from public.conversations c
+    where c.id = conversation_id and c.user_id = (select auth.uid())
+  )
+);
+create policy messages_owner_insert on public.messages
+for insert to authenticated with check (
+  exists (
+    select 1 from public.conversations c
+    where c.id = conversation_id and c.user_id = (select auth.uid())
+  )
+);
+
+grant select, insert, update on public.conversations to authenticated;
+grant select, insert on public.messages to authenticated;
+revoke update, delete on public.messages from anon, authenticated;
+
+-- Function execution: check-in/redeem only; apply_points is internal.
+revoke all on function public.apply_points(uuid, integer, public.activity_type, text, text, jsonb)
+from public, anon, authenticated;
+revoke all on function public.check_in_today() from public, anon;
+revoke all on function public.redeem_reward(text) from public, anon;
+grant execute on function public.check_in_today() to authenticated;
+grant execute on function public.redeem_reward(text) to authenticated;
+
+-- ----------------------------
+-- 12. Portfolio summary view
+-- Use transaction tables for actual amounts, not unit price estimates.
+-- ----------------------------
+create view public.v_my_portfolio_summary
+with (security_invoker = true)
+as
+select
+  p.id as user_id,
+  coalesce(c.total_contributions, 0)::numeric(14,2) as completed_contributions_myr,
+  coalesce(py.total_payouts, 0)::numeric(14,2) as completed_payouts_myr,
+  coalesce(c.total_contributions, 0)::numeric(14,2) as contribution_basis_myr
+from public.profiles p
+left join (
+  select user_id, sum(amount) as total_contributions
+  from public.contributions
+  where status = 'completed'
+  group by user_id
+) c on c.user_id = p.id
+left join (
+  select user_id, sum(amount) as total_payouts
+  from public.payouts
+  where status = 'completed'
+  group by user_id
+) py on py.user_id = p.id;
+
+grant select on public.v_my_portfolio_summary to authenticated;
+
+-- End of baseline schema.
+-- Before launch: create secure Edge Functions for payment-provider
+-- verification, subscription/unit reservation, alert detection,
+-- notification delivery, and AI Analyst tool calls.
