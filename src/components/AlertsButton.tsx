@@ -56,6 +56,8 @@ export function alertTarget(a: Alert, subscribed: (siteId: string) => boolean): 
       return { to: '/solar', section: 'credits' }
     case 'rewards_milestone':
       return { to: '/rewards', section: 'points' }
+    case 'ev_charging':
+      return { to: '/charge', section: 'bookings' }
   }
 }
 

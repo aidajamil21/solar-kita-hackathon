@@ -90,7 +90,13 @@ export async function catalogue(userId) {
 export async function ensureProfile(userId) {
   const rows = await run(supabase.from('profiles').select('*').eq('id', userId).limit(1))
   if (rows[0]) return rows[0]
-  await run(supabase.from('profiles').upsert({ id: userId, full_name: 'Demo Resident' }, { onConflict: 'id', ignoreDuplicates: true }))
+  try {
+    await run(supabase.from('profiles').upsert({ id: userId, full_name: 'Demo Resident' }, { onConflict: 'id', ignoreDuplicates: true }))
+  } catch (err) {
+    // the account was deleted (e.g. by re-running seed.sql) but the browser still has its session
+    if (err.code === '23503') throw new HttpError(401, 'Your account no longer exists. Please sign in again.')
+    throw err
+  }
   await run(supabase.from('notification_preferences').upsert({ user_id: userId }, { onConflict: 'user_id', ignoreDuplicates: true }))
   return (await run(supabase.from('profiles').select('*').eq('id', userId).limit(1)))[0]
 }

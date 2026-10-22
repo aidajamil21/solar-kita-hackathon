@@ -3,8 +3,9 @@ import { checkIn, markAllAlertsRead, redeem, resetDemo, subscribe, updateMe } fr
 import { GREEN, logTrip } from './green.js'
 import { planSummary, skipMonth, startPlan, stopPlan, syncPlan, updatePlan } from './plan.js'
 import { syncBlockCredits } from './credits.js'
+import { availability, book, bookingsOf, cancel as cancelBooking, EV, finish as finishCharging, pay as payCharging, start as startCharging } from './ev.js'
 import { config } from './config.js'
-import { answer } from './assistant.js'
+import { analyst } from './llm.js'
 import { run, supabase } from './db.js'
 import { alertsFor, catalogue, environmentalImpact, me, portfolioSummary, projectedScenarios, projectPerformance, realizedReturn, tripsOf } from './services.js'
 import { HttpError } from './utils.js'
@@ -59,6 +60,17 @@ router.post('/plan/skip-month', h(async (req, res) => {
   await skipMonth(req.userId)
   res.json({ ...(await planSummary(req.userId)), me: await me(req.userId) })
 }))
+
+/* EV charging: book a bay, charge, pay after */
+const evResult = async (userId) => ({ ...(await bookingsOf(userId)), me: await me(userId) })
+router.get('/ev/rules', (_req, res) => res.json(EV))
+router.get('/ev/availability', h(async (req, res) => res.json(await availability(req.query.siteId, req.query.date))))
+router.get('/ev/bookings', h(async (req, res) => res.json(await bookingsOf(req.userId))))
+router.post('/ev/bookings', h(async (req, res) => { await book(req.userId, req.body); res.status(201).json(await evResult(req.userId)) }))
+router.post('/ev/bookings/:id/cancel', h(async (req, res) => { await cancelBooking(req.userId, req.params.id); res.json(await evResult(req.userId)) }))
+router.post('/ev/bookings/:id/start', h(async (req, res) => { await startCharging(req.userId, req.params.id, !!req.body?.demo); res.json(await evResult(req.userId)) }))
+router.post('/ev/bookings/:id/finish', h(async (req, res) => { await finishCharging(req.userId, req.params.id); res.json(await evResult(req.userId)) }))
+router.post('/ev/bookings/:id/pay', h(async (req, res) => { await payCharging(req.userId, req.params.id); res.json(await evResult(req.userId)) }))
 
 /* Go Green: walk or cycle in your township to earn points */
 router.get('/green/rules', (_req, res) => res.json(GREEN))
@@ -128,8 +140,9 @@ async function listMessages(conversationId) {
 async function postMessage(conversationId, userId, raw) {
   const text = String(raw ?? '').trim().slice(0, 2000)
   if (!text) throw new HttpError(400, 'text is required')
+  const history = (await listMessages(conversationId)).slice(-10)
   await run(supabase.from('messages').insert({ conversation_id: conversationId, role: 'user', content: text }))
-  const reply = await answer(userId, text)
+  const reply = await analyst(userId, text, history)
   const [saved] = await run(supabase.from('messages')
     .insert({
       conversation_id: conversationId,

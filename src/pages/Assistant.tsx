@@ -4,26 +4,57 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { backendApi } from '../api/backend'
 import type { ChatMessage } from '../api/types'
-import { AttachmentView, ToolTrace } from '../components/chat/Cards'
+import { AttachmentView, ToolTrace, type CardActions } from '../components/chat/Cards'
+import { alertTarget, reloadAlerts } from '../components/AlertsButton'
 import { SAMPLE_CONVERSATION, SUGGESTIONS } from '../components/chat/sample'
 import { useStore } from '../store'
 import { Info } from '../components/Info'
 import { HELP } from '../help'
 
 
-/** tiny markdown: paragraphs, "- " bullet lists and **bold** */
+/** inline markdown: **bold**, *italic* / _italic_ and `code` */
+function inline(s: string): ReactNode[] {
+  return s.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|\b_[^_]+_\b)/g).map((p, i) => {
+    if (p.startsWith('**') && p.endsWith('**') && p.length > 4) return <b key={i}>{p.slice(2, -2)}</b>
+    if (p.startsWith('`') && p.endsWith('`') && p.length > 2) return <code key={i}>{p.slice(1, -1)}</code>
+    if (/^\*[^*].*\*$|^_.+_$/.test(p)) return <i key={i}>{p.slice(1, -1)}</i>
+    return <Fragment key={i}>{p}</Fragment>
+  })
+}
+
+/**
+ * small markdown for chat replies: paragraphs (single line breaks kept), "- " / "* " / "•" bullets,
+ * "1." numbered lists, # headings (shown as bold lines), **bold**, *italic* and `code`
+ */
 function Rich({ text }: { text: string }) {
-  const inline = (s: string) => s.split(/(\*\*[^*]+\*\*)/g).map((p, i) => (p.startsWith('**') ? <b key={i}>{p.slice(2, -2)}</b> : <Fragment key={i}>{p}</Fragment>))
+  type Block = { type: 'p' | 'ul' | 'ol' | 'h'; lines: string[] }
+  const blocks: Block[] = []
+  for (const raw of text.replace(/\r\n/g, '\n').split('\n')) {
+    const line = raw.trimEnd()
+    const bullet = line.match(/^\s*(?:[-*•])\s+(.*)$/)
+    const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/)
+    const heading = line.match(/^\s*#{1,6}\s+(.*)$/)
+    const last = blocks[blocks.length - 1]
+    if (!line.trim()) { blocks.push({ type: 'p', lines: [] }); continue }
+    if (heading) blocks.push({ type: 'h', lines: [heading[1]] })
+    else if (bullet) {
+      if (last?.type === 'ul') last.lines.push(bullet[1])
+      else blocks.push({ type: 'ul', lines: [bullet[1]] })
+    } else if (numbered) {
+      if (last?.type === 'ol') last.lines.push(numbered[1])
+      else blocks.push({ type: 'ol', lines: [numbered[1]] })
+    } else if (last?.type === 'p') last.lines.push(line.trim())
+    else blocks.push({ type: 'p', lines: [line.trim()] })
+  }
   return (
-    <>
-      {text.split(/\n\n+/).map((block, i) => {
-        const lines = block.split('\n')
-        if (lines.every((l) => l.startsWith('- '))) {
-          return <ul key={i} style={{ margin: '6px 0', paddingLeft: 18 }}>{lines.map((l, k) => <li key={k} style={{ margin: '2px 0' }}>{inline(l.slice(2))}</li>)}</ul>
-        }
-        return <p key={i} style={{ margin: i ? '8px 0 0' : 0 }}>{inline(block)}</p>
+    <div className="chat-rich">
+      {blocks.filter((b) => b.lines.length).map((b, i) => {
+        if (b.type === 'h') return <h4 key={i}>{inline(b.lines[0])}</h4>
+        if (b.type === 'ul') return <ul key={i}>{b.lines.map((l, k) => <li key={k}>{inline(l)}</li>)}</ul>
+        if (b.type === 'ol') return <ol key={i}>{b.lines.map((l, k) => <li key={k}>{inline(l)}</li>)}</ol>
+        return <p key={i}>{b.lines.map((l, k) => <Fragment key={k}>{k > 0 && <br />}{inline(l)}</Fragment>)}</p>
       })}
-    </>
+    </div>
   )
 }
 
@@ -35,7 +66,7 @@ function Avatar({ size = 34 }: { size?: number }) {
   )
 }
 
-function Bubble({ m, streaming }: { m: ChatMessage; streaming?: string }) {
+function Bubble({ m, streaming, actions }: { m: ChatMessage; streaming?: string; actions?: CardActions }) {
   if (m.role === 'user') {
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="row" style={{ justifyContent: 'flex-end' }}>
@@ -58,7 +89,7 @@ function Bubble({ m, streaming }: { m: ChatMessage; streaming?: string }) {
         </div>
         {done && m.attachments?.map((a, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.08 }}>
-            <AttachmentView a={a} />
+            <AttachmentView a={a} {...actions} />
           </motion.div>
         ))}
       </div>
@@ -93,7 +124,22 @@ export default function Assistant() {
   const scroller = useRef<HTMLDivElement>(null)
   const timers = useRef<number[]>([])
   const [error, setError] = useState<string | null>(null)
-  const { online, name } = useStore()
+  const { online, name, subs } = useStore()
+
+  // cards and buttons in replies open the page they're about; that page offers "Back to Solar Analyst"
+  const actions: CardActions = {
+    onOpen: (to, section) => {
+      const site = to.match(/^\/solar\/(.+)$/)?.[1]
+      // a project page only exists for projects the resident holds; otherwise show it on the map
+      const dest = site && !subs.some((s) => s.siteId === site) ? `/explore?site=${site}` : to
+      nav(dest, { state: { from: 'assistant', section } })
+    },
+    onAlert: (a) => {
+      const t = alertTarget(a, (id) => subs.some((s) => s.siteId === id))
+      if (online && !a.read) backendApi.markAlertRead(a.id).then(reloadAlerts).catch(() => {})
+      nav(t.to, { state: { from: 'assistant', section: t.section, openDoc: t.openDoc } })
+    },
+  }
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   useEffect(() => {
@@ -190,9 +236,9 @@ export default function Assistant() {
         {error && <div className="empty" style={{ marginBottom: 10 }}>{error}</div>}
         {messages.length === 0 && !pending && !streaming && <Welcome onPick={send} name={name.split(' ')[0]} />}
         <div className="col" style={{ gap: 14 }}>
-          {messages.map((m) => <Bubble key={m.id} m={m} />)}
+          {messages.map((m) => <Bubble key={m.id} m={m} actions={actions} />)}
           <AnimatePresence>{pending && <Typing tools={pending.tools} />}</AnimatePresence>
-          {streaming && <Bubble m={streaming.msg} streaming={streaming.text} />}
+          {streaming && <Bubble m={streaming.msg} streaming={streaming.text} actions={actions} />}
           {followUps && (
             <div className="row" style={{ gap: 6, flexWrap: 'wrap', paddingLeft: 36 }}>
               {followUps.map((s) => <button key={s} className="chip" style={{ height: 32, fontSize: 12 }} onClick={() => send(s)}>{s}</button>)}

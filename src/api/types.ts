@@ -64,6 +64,8 @@ export interface ScenarioSet extends DataMeta {
   scenarios: Scenario[]
   assumptions: string[]
   risks: string[]
+  /** set when the projection uses one project's return range */
+  projectName?: string
 }
 
 /* ---------- get_project_performance ---------- */
@@ -93,7 +95,7 @@ export interface EnvironmentalImpact extends DataMeta {
 /* ---------- get_active_alerts ---------- */
 export type AlertType =
   | 'contribution_recorded' | 'payout_completed' | 'payout_overdue' | 'low_generation'
-  | 'project_outage' | 'funding_milestone' | 'rewards_milestone' | 'project_report'
+  | 'project_outage' | 'funding_milestone' | 'rewards_milestone' | 'project_report' | 'ev_charging'
 export interface Alert {
   id: string
   type: AlertType
@@ -109,17 +111,25 @@ export interface Alert {
 
 /* ---------- conversation ---------- */
 export type ToolName =
-  | 'get_portfolio_summary' | 'calculate_realized_return' | 'calculate_projected_scenarios'
-  | 'get_project_performance' | 'get_environmental_impact' | 'get_active_alerts'
+  // LLM analyst (server/src/llm.js)
+  | 'get_user_portfolio' | 'calculate_investment_return' | 'compare_investment_scenarios' | 'get_recent_alerts'
+  // rule-based analyst (server/src/assistant.js, the fallback) and older saved messages
+  | 'get_portfolio_summary' | 'calculate_realized_return' | 'calculate_projected_scenarios' | 'get_active_alerts'
+  | 'get_project_performance' | 'get_environmental_impact'
+
+/** a button in a reply that opens a page of the app (validated by the server) */
+export interface ChatLink { label: string; to: string; icon?: 'map' | 'sun' | 'coins' | 'calendar' | 'plug' | 'leaf' | 'gift'; section?: string; siteId?: string }
 
 /** structured results the assistant attaches so the UI can render rich cards */
 export type Attachment =
   | { kind: 'portfolio'; data: PortfolioSummary }
   | { kind: 'realized'; data: RealizedReturn }
-  | { kind: 'scenarios'; data: ScenarioSet }
+  /** `sets` holds every compared duration (the card switches between them); `data` is the longest */
+  | { kind: 'scenarios'; data: ScenarioSet; sets?: ScenarioSet[] }
   | { kind: 'performance'; data: ProjectPerformance }
   | { kind: 'impact'; data: EnvironmentalImpact }
   | { kind: 'alerts'; data: Alert[] }
+  | { kind: 'links'; data: ChatLink[] }
 
 export interface ChatMessage {
   id: string

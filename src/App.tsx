@@ -10,6 +10,7 @@ import Explore from './pages/Explore'
 import Home from './pages/Home'
 import Me from './pages/Me'
 import Rewards from './pages/Rewards'
+import Charge from './pages/Charge'
 import Green from './pages/Green'
 import Plan from './pages/Plan'
 import Solar from './pages/Solar'
@@ -37,6 +38,7 @@ function Screens() {
           <Route path="/me" element={<Me />} />
           <Route path="/assistant" element={<Assistant />} />
           <Route path="/green" element={<Green />} />
+          <Route path="/charge" element={<Charge />} />
           <Route path="/plan" element={<Plan />} />
         </Routes>
       </motion.div>

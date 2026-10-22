@@ -115,8 +115,8 @@ export const rise: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 }
 
-/** opened from a notification: scroll to the section it points at and flash it */
-export function useFromAlert() {
+/** opened from a notification or the Solar Analyst: scroll to the section it points at and flash it */
+export function useFromAlert(): 'alerts' | 'assistant' | null {
   const state = useLocation().state as { from?: string; section?: string } | null
   const section = state?.section
   useEffect(() => {
@@ -130,15 +130,17 @@ export function useFromAlert() {
     }, 520)
     return () => window.clearTimeout(t)
   }, [section])
-  return state?.from === 'alerts'
+  return state?.from === 'alerts' || state?.from === 'assistant' ? state.from : null
 }
 
-/** top-left back button on pages reached from a notification; returns to the notifications list */
-export function AlertBack({ inline }: { inline?: boolean }) {
+/** top-left back button on pages reached from a notification or the chat; returns there */
+export function AlertBack({ inline, from = 'alerts' }: { inline?: boolean; from?: 'alerts' | 'assistant' }) {
   const nav = useNavigate()
   return (
     <div className={`alert-back${inline ? ' inline' : ''}`}>
-      <button onClick={() => { nav(-1); openAlerts() }} aria-label="Back to notifications"><ChevronLeft size={18} /> Back</button>
+      <button onClick={() => { nav(-1); if (from === 'alerts') openAlerts() }} aria-label={from === 'alerts' ? 'Back to notifications' : 'Back to Solar Analyst'}>
+        <ChevronLeft size={18} /> Back
+      </button>
     </div>
   )
 }
@@ -149,7 +151,7 @@ export function Page({ children, ownBack }: { children: ReactNode; ownBack?: boo
     <div className="screen">
       <motion.div className="page" variants={stagger} initial="hidden" animate="show">
         <div className="page-bg" />
-        {fromAlert && !ownBack && <AlertBack />}
+        {fromAlert && !ownBack && <AlertBack from={fromAlert} />}
         {children}
       </motion.div>
     </div>

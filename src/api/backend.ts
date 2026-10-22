@@ -107,7 +107,7 @@ export interface RemoteMe {
   mapMode: '3d' | '2d'
   subs: { siteId: string; units: number[]; since: string }[]
   redemptions: { id: string; rewardId: string; at: number; code: string }[]
-  activity: { id: string; title: string; points: number; at: number; type: 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle' | 'plan' }[]
+  activity: { id: string; title: string; points: number; at: number; type: 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle' | 'plan' | 'charge' }[]
   checkins: string[]
   trips: Trip[]
 }
@@ -130,6 +130,17 @@ export interface PlanSummary {
   credits?: { month: string; amount: number; upcoming: boolean }[]
 }
 type PlanChange = PlanSummary & { me: RemoteMe }
+
+/* ---------- EV charging bookings (see server/src/ev.js) ---------- */
+export interface EvBooking {
+  id: string; siteId: string; siteName: string; bay: number; startsAt: string; hours: number
+  status: 'booked' | 'charging' | 'awaiting_payment' | 'paid' | 'cancelled' | 'missed'
+  energyKwh: number | null; peakKwh: number | null; amount: number | null; points: number | null
+  startedAt: string | null; finishedAt: string | null; paidAt: string | null
+}
+export interface EvBookings { setup: boolean; bookings: EvBooking[] }
+export interface EvAvailability { siteId: string; date: string; bays: number; hours: { hour: number; free: number; peak: boolean; past: boolean }[] }
+type EvChange = EvBookings & { me: RemoteMe }
 
 export const backendApi = {
   isConfigured,
@@ -160,6 +171,13 @@ export const backendApi = {
     request<PlanChange>('/api/plan', { method: 'PATCH', body: JSON.stringify(patch) }),
   stopPlan: () => request<PlanChange>('/api/plan', { method: 'DELETE' }),
   skipPlanMonth: () => post<PlanChange>('/api/plan/skip-month'),
+
+  /* EV charging */
+  evAvailability: (siteId: string, date: string) => request<EvAvailability>(`/api/ev/availability?siteId=${encodeURIComponent(siteId)}&date=${date}`),
+  evBookings: () => request<EvBookings>('/api/ev/bookings'),
+  evBook: (siteId: string, date: string, startHour: number, hours: number) => post<EvChange>('/api/ev/bookings', { siteId, date, startHour, hours }),
+  evAction: (id: string, action: 'cancel' | 'start' | 'finish' | 'pay', demo?: boolean) =>
+    post<EvChange>(`/api/ev/bookings/${encodeURIComponent(id)}/${action}`, demo ? { demo: true } : {}),
 
   /* AI analyst tools */
   getPortfolioSummary: () => request<PortfolioSummary>('/api/portfolio/summary'),

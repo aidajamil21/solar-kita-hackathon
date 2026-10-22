@@ -4,6 +4,7 @@
  */
 import { GREEN } from './green'
 import { PLAN, totalBack } from './plan'
+import { EV, fmtHour } from './ev'
 
 export const HELP = {
   /* ---- solar projects ---- */
@@ -59,6 +60,13 @@ export const HELP = {
   planStop: 'Stopping ends future payments only. Everything you’ve already paid keeps coming back on schedule.',
   planAmount: 'The new amount applies from your next payment. Payments already made don’t change.',
   planSkip: 'Prototype only: makes a month pass so you can see the next payment, points and credits without waiting.',
+
+  /* ---- EV charging ---- */
+  evPrice: `One price all day: RM ${EV.pricePerKwh.toFixed(2)} for every kWh your car takes. You only pay for the energy actually delivered.`,
+  evPeak: `The solar peak (${fmtHour(EV.peakStart)}–${fmtHour(EV.peakEnd)}) is when the station’s solar canopy produces the most. Charging then earns ${EV.peakPointsPerKwh} points per kWh, against 1 point per ${1 / EV.offPeakPointsPerKwh} kWh at other times.`,
+  evPayAfter: 'Booking is free and holds a bay for you. When you finish charging, the app works out the energy used and you pay the bill then. Cancel any time before you start.',
+  evEstimate: 'An estimate: cars draw less power as their battery fills. The real figures are worked out when you finish charging.',
+  evBay: 'Each station has several charging bays. A free bay is assigned when you book, and stays yours for the whole booking.',
 
   /* ---- settings ---- */
   mapMode: '3D shows your township in full detail but uses more battery and graphics power. 2D is a lighter flat map with the same pins, filters and sites.',

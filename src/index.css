@@ -178,6 +178,37 @@ h1, h2, h3, h4, p { margin: 0; }
   .guide-compare > div, .guide-compare > button { grid-template-columns: 1.3fr 1fr 0.9fr 1fr 0.8fr; padding: 8px; gap: 4px; }
 }
 
+/* ---------- EV charging ---------- */
+.ev-label { display: flex; align-items: center; gap: 5px; margin: 16px 0 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.ev-station { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px 8px 8px; border-radius: 16px; border: 1.5px solid var(--line); background: #fff; font-size: 13.5px; transition: border-color 0.2s, background 0.2s; }
+.ev-station img { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
+.ev-station.on { border-color: var(--brand); background: var(--brand-soft); }
+.ev-chip { flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; font-size: 12.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; transition: all 0.15s; }
+.ev-chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.ev-peak-key { display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 700; color: #b26b00; background: var(--gold-soft); padding: 3px 8px; border-radius: 999px; }
+.ev-hours { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ev-hour { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; transition: all 0.15s; }
+.ev-hour b { font-size: 13px; }
+.ev-hour span { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.ev-hour .sun { position: absolute; top: 5px; right: 5px; color: #e08600; }
+.ev-hour.peak { background: var(--gold-soft); border-color: #ffd89a; }
+.ev-hour:disabled { opacity: 0.4; cursor: not-allowed; }
+.ev-hour.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.ev-hour.on span, .ev-hour.on .sun { color: rgba(255, 255, 255, 0.85); }
+.ev-hour.first { box-shadow: 0 0 0 3px rgba(242, 0, 0, 0.18); }
+.ev-summary { margin-top: 14px; padding: 14px; border-radius: 18px; background: linear-gradient(135deg, #fff7ea, #fff); border: 1px solid #ffe1b3; }
+.ev-est { padding: 9px 10px; border-radius: 12px; background: #fff; border: 1px solid var(--line-2); }
+.ev-est span { display: block; font-size: 10.5px; font-weight: 600; color: var(--muted); }
+.ev-est b { display: block; font-size: 14px; margin-top: 2px; }
+.pill.gold-pill { background: var(--gold-soft); color: #b26b00; }
+.pill.blue { background: var(--blue-soft); color: var(--blue); }
+.ev-booking.charging { border-color: #bfe5cf; background: linear-gradient(135deg, #effaf3, #fff); }
+.ev-booking.awaiting_payment { border-color: #ffd0c4; background: linear-gradient(135deg, #fff3ee, #fff); }
+.ev-charging-bar { margin-top: 12px; height: 6px; border-radius: 6px; background: var(--green-soft); overflow: hidden; }
+.ev-charging-bar i { display: block; height: 100%; width: 40%; border-radius: 6px; background: linear-gradient(90deg, #2fae78, #1f8a5b); animation: ev-flow 1.4s ease-in-out infinite; }
+@keyframes ev-flow { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+@media (min-width: 560px) { .ev-hours { grid-template-columns: repeat(6, 1fr); } }
+
 /* ---------- solar builder plan ---------- */
 .plan-amounts { display: flex; flex-wrap: wrap; gap: 8px; }
 .plan-amounts button { height: 40px; padding: 0 16px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; font-weight: 800; font-size: 13.5px; transition: all 0.2s; }
@@ -490,6 +521,20 @@ body { letter-spacing: -0.005em; }
 .chat-compose .send { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; color: #fff; background: linear-gradient(150deg, #ff3100, #e60000); box-shadow: 0 8px 16px -8px rgba(220, 0, 0, 0.8); transition: transform 0.2s, opacity 0.2s; }
 .chat-compose .send:disabled { opacity: 0.35; box-shadow: none; }
 .chat-compose .send:active { transform: scale(0.92); }
+.chat-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chat-link { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px 0 12px; border-radius: 999px; background: #fff; border: 1px solid #ffd9d3; color: var(--brand); font-size: 12.5px; font-weight: 700; box-shadow: 0 4px 10px -8px rgba(220, 0, 0, 0.6); transition: background 0.15s, border-color 0.15s; }
+.chat-link span { color: var(--ink); }
+.chat-link .go { color: var(--muted); }
+.chat-link:hover { background: var(--brand-soft); border-color: #ffb3a7; }
+.chat-rich h4 { margin: 10px 0 2px; font-size: 13.5px; font-weight: 800; }
+.chat-rich h4:first-child { margin-top: 0; }
+.chat-rich ul, .chat-rich ol { margin: 6px 0; padding-left: 18px; }
+.chat-rich li { margin: 3px 0; }
+.chat-rich li::marker { color: var(--brand); }
+.chat-rich p { margin: 8px 0 0; }
+.chat-rich p:first-child { margin-top: 0; }
+.chat-rich b { font-weight: 800; }
+.chat-rich code { font-size: 12.5px; background: var(--line-2); padding: 1px 5px; border-radius: 6px; }
 .chat-disclaimer { margin: 6px 4px 0; font-size: 10.5px; color: var(--muted); text-align: center; }
 .caret { display: inline-block; width: 7px; height: 14px; margin-left: 2px; vertical-align: -2px; background: var(--brand); border-radius: 2px; animation: blink 0.9s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }

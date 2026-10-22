@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import { AlertTriangle, BadgeCheck, BarChart3, Bell, CalendarClock, ChevronDown, CircleDollarSign, FileText, Flag, HandCoins, Leaf, LineChart, PowerOff, Star, TreePine, Wrench, Zap, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, BadgeCheck, BarChart3, Bell, CalendarClock, ChevronDown, ChevronRight, CircleDollarSign, Coins, FileText, Flag, Gift, HandCoins, Leaf, LineChart, Map as MapIcon, PowerOff, Star, Sun, TreePine, Wrench, Zap, type LucideIcon, PlugZap } from 'lucide-react'
 import { createElement, useState, type ReactNode } from 'react'
-import type { Alert, AlertType, Attachment, DataMeta, EnvironmentalImpact, PortfolioSummary, ProjectPerformance, RealizedReturn, ScenarioSet, ToolName } from '../../api/types'
+import type { Alert, AlertType, Attachment, ChatLink, DataMeta, EnvironmentalImpact, PortfolioSummary, ProjectPerformance, RealizedReturn, ScenarioSet, ToolName } from '../../api/types'
 import { rm } from '../../data'
 
 const fmtTime = (iso: string) => new Date(iso).toLocaleString('en-MY', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
@@ -42,7 +42,8 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: '
 }
 
 /* ---------- get_portfolio_summary ---------- */
-export function PortfolioCard({ d }: { d: PortfolioSummary }) {
+export function PortfolioCard({ d, onOpen }: { d: PortfolioSummary; onOpen?: (to: string) => void }) {
+  const target = (h: PortfolioSummary['holdings'][number]) => (h.projectName.startsWith('Solar Builder Plan') ? '/plan' : `/solar/${h.projectId}`)
   return (
     <Shell icon={CircleDollarSign} title="Portfolio summary" meta={d}>
       <div className="grid-2" style={{ gap: 6 }}>
@@ -53,7 +54,10 @@ export function PortfolioCard({ d }: { d: PortfolioSummary }) {
       </div>
       <div className="list" style={{ marginTop: 6 }}>
         {d.holdings.map((h) => (
-          <div key={h.projectId} className="list-row" style={{ padding: '9px 0' }}>
+          <div key={`${h.projectId}-${h.projectName}`} className="list-row" style={{ padding: '9px 0', cursor: onOpen ? 'pointer' : undefined }}
+            role={onOpen ? 'button' : undefined} tabIndex={onOpen ? 0 : undefined}
+            onClick={onOpen ? () => onOpen(target(h)) : undefined}
+            onKeyDown={onOpen ? (e) => { if (e.key === 'Enter') onOpen(target(h)) } : undefined}>
             <div className="grow">
               <div style={{ fontWeight: 700, fontSize: 12.5 }}>{h.projectName}</div>
               <div style={{ fontSize: 11, color: 'var(--muted)' }}>{h.units} unit{h.units > 1 ? 's' : ''} · {h.township}</div>
@@ -62,6 +66,7 @@ export function PortfolioCard({ d }: { d: PortfolioSummary }) {
               <div className="num" style={{ fontWeight: 700 }}>{rm(h.contributed)}</div>
               <div className="num" style={{ color: 'var(--green)', fontWeight: 600 }}>+{rm(h.payoutsReceived, 2)}</div>
             </div>
+            {onOpen && <ChevronRight size={14} className="muted" style={{ flexShrink: 0 }} />}
           </div>
         ))}
       </div>
@@ -84,11 +89,29 @@ export function RealizedCard({ d }: { d: RealizedReturn }) {
 }
 
 /* ---------- calculate_projected_scenarios ---------- */
-export function ScenarioCard({ d }: { d: ScenarioSet }) {
-  const max = Math.max(...d.scenarios.map((s) => s.totalPayouts))
+export function ScenarioCard({ d: latest, sets }: { d: ScenarioSet; sets?: ScenarioSet[] }) {
+  const options = sets && sets.length > 1 ? sets : [latest]
+  const [pick, setPick] = useState(options.length - 1)
+  const d = options[pick] ?? latest
+  const max = Math.max(...options.flatMap((o) => o.scenarios.map((s) => s.totalPayouts)))
   const [open, setOpen] = useState(false)
+  const yrs = (n: number) => `${n} year${n === 1 ? '' : 's'}`
   return (
-    <Shell icon={LineChart} title={`${rm(d.amount)} over ${d.years} years`} meta={d}>
+    <Shell icon={LineChart} title={options.length > 1 ? `${rm(d.amount)}${d.projectName ? ` in ${d.projectName}` : ''}` : `${rm(d.amount)} over ${yrs(d.years)}`} meta={d}>
+      {options.length > 1 && (
+        <div className="row" style={{ gap: 6, marginBottom: 12 }} role="tablist" aria-label="Duration">
+          {options.map((o, i) => (
+            <button key={o.years} role="tab" aria-selected={i === pick} className={`chip ${i === pick ? 'active' : ''}`} style={{ height: 30, fontSize: 12 }} onClick={() => setPick(i)}>
+              {yrs(o.years)}
+            </button>
+          ))}
+        </div>
+      )}
+      {d.scenarios[0].moneyBack !== undefined && (
+        <div style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 10, lineHeight: 1.45 }}>
+          After <b>{yrs(d.years)}</b>, <b className="num">{rm(d.scenarios[0].moneyBack)}</b> of your money is back. Extra earned on top:
+        </div>
+      )}
       <div className="col" style={{ gap: 10 }}>
         {d.scenarios.map((s, i) => (
           <div key={s.name}>
@@ -97,7 +120,7 @@ export function ScenarioCard({ d }: { d: ScenarioSet }) {
               <span className="num" style={{ fontWeight: 800 }}>+{rm(s.totalPayouts)}</span>
             </div>
             <div className="progress" style={{ height: 8 }}>
-              <motion.i initial={{ width: 0 }} animate={{ width: `${(s.totalPayouts / max) * 100}%` }} transition={{ delay: 0.1 + i * 0.1, duration: 0.7 }}
+              <motion.i key={d.years} initial={{ width: 0 }} animate={{ width: `${(s.totalPayouts / max) * 100}%` }} transition={{ delay: 0.1 + i * 0.1, duration: 0.7 }}
                 style={{ background: ['#FFC9A8', '#FF6E00', '#F20000'][i] }} />
             </div>
           </div>
@@ -183,6 +206,7 @@ export const ALERT_META: Record<AlertType, { icon: LucideIcon; label: string }> 
   funding_milestone: { icon: Flag, label: 'Funding' },
   rewards_milestone: { icon: Star, label: 'Rewards' },
   project_report: { icon: FileText, label: 'Report' },
+  ev_charging: { icon: PlugZap, label: 'EV charging' },
 }
 const SEVERITY_CLASS = { info: 'blue', success: 'green', warning: '', critical: 'rose' } as const
 
@@ -205,27 +229,54 @@ export function AlertRow({ a, onClick }: { a: Alert; onClick?: () => void }) {
   )
 }
 
-export function AlertsCard({ d }: { d: Alert[] }) {
+export function AlertsCard({ d, onAlert }: { d: Alert[]; onAlert?: (a: Alert) => void }) {
   return (
     <Shell icon={Bell} title="Active alerts">
-      <div className="list">{d.map((a) => <AlertRow key={a.id} a={a} />)}</div>
+      <div className="list">{d.map((a) => <AlertRow key={a.id} a={a} onClick={onAlert ? () => onAlert(a) : undefined} />)}</div>
     </Shell>
   )
 }
 
-export function AttachmentView({ a }: { a: Attachment }) {
+/* ---------- page buttons the analyst suggests ---------- */
+const LINK_ICON: Record<NonNullable<ChatLink['icon']>, LucideIcon> = { map: MapIcon, sun: Sun, coins: Coins, calendar: CalendarClock, plug: PlugZap, leaf: Leaf, gift: Gift }
+export function LinksRow({ d, onOpen }: { d: ChatLink[]; onOpen?: (l: ChatLink) => void }) {
+  return (
+    <div className="chat-links">
+      {d.map((l) => (
+        <motion.button key={`${l.to}${l.section ?? ''}`} whileTap={{ scale: 0.97 }} className="chat-link" onClick={() => onOpen?.(l)} disabled={!onOpen}>
+          {createElement((l.icon && LINK_ICON[l.icon]) || ArrowUpRight, { size: 14 })}
+          <span>{l.label}</span>
+          <ArrowUpRight size={13} className="go" />
+        </motion.button>
+      ))}
+    </div>
+  )
+}
+
+export interface CardActions {
+  /** open a page of the app (optionally scrolled to a section) */
+  onOpen?: (to: string, section?: string) => void
+  onAlert?: (a: Alert) => void
+}
+
+export function AttachmentView({ a, onOpen, onAlert }: { a: Attachment } & CardActions) {
   switch (a.kind) {
-    case 'portfolio': return <PortfolioCard d={a.data} />
+    case 'portfolio': return <PortfolioCard d={a.data} onOpen={onOpen ? (to) => onOpen(to) : undefined} />
     case 'realized': return <RealizedCard d={a.data} />
-    case 'scenarios': return <ScenarioCard d={a.data} />
+    case 'scenarios': return <ScenarioCard d={a.data} sets={a.sets} />
     case 'performance': return <PerformanceCard d={a.data} />
     case 'impact': return <ImpactCard d={a.data} />
-    case 'alerts': return <AlertsCard d={a.data} />
+    case 'alerts': return <AlertsCard d={a.data} onAlert={onAlert} />
+    case 'links': return <LinksRow d={a.data} onOpen={onOpen ? (l) => onOpen(l.to, l.section) : undefined} />
   }
 }
 
 /* ---------- tool trace: which approved tools the answer used ---------- */
 const TOOL_LABEL: Record<ToolName, string> = {
+  get_user_portfolio: 'Portfolio summary',
+  calculate_investment_return: 'Returns received',
+  compare_investment_scenarios: 'Projected scenarios',
+  get_recent_alerts: 'Recent alerts',
   get_portfolio_summary: 'Portfolio summary',
   calculate_realized_return: 'Returns received',
   calculate_projected_scenarios: 'Projected scenarios',
@@ -238,7 +289,7 @@ export function ToolTrace({ calls, live }: { calls: { name: ToolName }[]; live?:
     <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
       {calls.map((c, i) => (
         <span key={i} className="pill grey" style={{ height: 22, fontSize: 10.5, padding: '0 8px' }}>
-          {live ? <Wrench size={11} /> : <Zap size={11} />} {TOOL_LABEL[c.name]}
+          {live ? <Wrench size={11} /> : <Zap size={11} />} {TOOL_LABEL[c.name] ?? c.name.replace(/_/g, ' ')}
         </span>
       ))}
     </div>

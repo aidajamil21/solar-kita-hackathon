@@ -25,4 +25,9 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET?.trim() || '',
   /** list every account on the login page for prototype testing (SHOW_TEST_ACCOUNTS=false hides it) */
   showTestAccounts: process.env.SHOW_TEST_ACCOUNTS?.trim().toLowerCase() !== 'false',
+  /** Solar Analyst LLM on Groq; without a key the rule-based analyst answers */
+  groqApiKey: (process.env.GROQ_LLM_API ?? process.env.GROQ_API_KEY)?.trim() || '',
+  groqModel: process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-120b',
+  /** tried when the main model fails or is rate-limited */
+  groqFallbackModel: process.env.GROQ_FALLBACK_MODEL?.trim() || 'openai/gpt-oss-20b',
 }

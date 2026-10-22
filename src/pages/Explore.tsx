@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, BookOpen, Check, ChevronDown, Compass, CreditCard, Landmark, LayoutGrid, Leaf, MapPin, Minus, Moon, Plus, Search, Star, Sun, Users, Wallet, X, Zap } from 'lucide-react'
+import { ArrowRight, BookOpen, Check, ChevronDown, Compass, CreditCard, Landmark, LayoutGrid, Leaf, MapPin, Minus, Moon, Plus, Search, Star, Sun, Users, Wallet, X, Zap, BatteryCharging } from 'lucide-react'
 import { createElement, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { ProjectArt, TownPhoto } from '../components/Art'
@@ -139,7 +139,7 @@ export default function Explore() {
 
       {/* ---- top overlay ---- */}
       <div className="map-top">
-        {fromAlert && <AlertBack inline />}
+        {fromAlert && <AlertBack inline from={fromAlert} />}
         <button className="glass-card town-btn" onClick={() => setTownOpen(true)}>
           <span className="town-thumb"><TownPhoto township={township} /></span>
           <span className="grow">
@@ -309,6 +309,7 @@ function SiteSheet(props: {
   onClear: () => void; onClose: () => void; onSubscribe: () => void
 }) {
   const { site, selection } = props
+  const nav = useNavigate()
   const store = useStore()
   const meta = KINDS[site.kind]
   const township = townshipById(site.townshipId)
@@ -359,6 +360,11 @@ function SiteSheet(props: {
         </div>
 
         <div style={{ marginTop: 12 }}><ProjectFacts site={site} layout="grid" /></div>
+        {site.kind === 'ev' && (
+          <button className="btn outline block" style={{ marginTop: 12 }} onClick={() => { props.onClose(); nav('/charge') }}>
+            <BatteryCharging size={17} /> Book a charging slot here
+          </button>
+        )}
 
         <div className="section" style={{ marginTop: 22, scrollMarginTop: 8 }} ref={gridRef}>
           <div className="row between" style={{ marginBottom: 4 }}>

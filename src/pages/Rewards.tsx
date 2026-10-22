@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Bike, CalendarCheck, ChevronRight, Clock, Copy, Footprints, Gift, History, Lock, PiggyBank, Star, Sun, TrendingUp, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Bike, CalendarCheck, ChevronRight, Clock, Copy, Footprints, Gift, History, Lock, PiggyBank, Star, Sun, TrendingUp, type LucideIcon, PlugZap, BatteryCharging } from 'lucide-react'
 import { createElement, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { VoucherArt } from '../components/Art'
@@ -17,7 +17,7 @@ const BANNERS = [
 ]
 
 const ACTIVITY_ICON: Record<ActivityType, LucideIcon> = {
-  subscribe: Sun, redeem: Gift, bonus: Star, event: CalendarCheck, quiz: TrendingUp, checkin: CalendarCheck, walk: Footprints, cycle: Bike, plan: PiggyBank,
+  subscribe: Sun, redeem: Gift, bonus: Star, event: CalendarCheck, quiz: TrendingUp, checkin: CalendarCheck, walk: Footprints, cycle: Bike, plan: PiggyBank, charge: PlugZap,
 }
 
 export default function Rewards() {
@@ -176,6 +176,15 @@ export default function Rewards() {
             <div style={{ fontWeight: 800, fontSize: 14 }}>Solar Builder Plan</div>
             <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>A monthly amount that comes back over 10 years, plus 3% a year.</div>
             <span className="pill" style={{ marginTop: 8 }}><Coin size={12} /> 1 point per RM 5 · streak bonuses</span>
+          </div>
+          <ChevronRight size={16} className="muted" />
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.98 }} className="card row" style={{ padding: 14, textAlign: 'left', width: '100%', marginTop: 10, gap: 12 }} onClick={() => nav('/charge')}>
+          <span className="ic blue"><BatteryCharging size={20} /></span>
+          <div className="grow">
+            <div style={{ fontWeight: 800, fontSize: 14 }}>Solar EV charging</div>
+            <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>Book a bay and charge during the solar peak for the most points.</div>
+            <span className="pill" style={{ marginTop: 8 }}><Coin size={12} /> 2 points per kWh, 11am–3pm</span>
           </div>
           <ChevronRight size={16} className="muted" />
         </motion.button>

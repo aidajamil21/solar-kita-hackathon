@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Bike, Check, ChevronRight, Footprints, Leaf, Map, Star } from 'lucide-react'
+import { ArrowRight, Bike, Check, ChevronRight, Footprints, Leaf, Map, Star, BatteryCharging } from 'lucide-react'
 import { createElement, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProjectArt, TownPhoto } from '../components/Art'
@@ -105,6 +105,18 @@ export default function Home() {
           <InitiativeStrip sites={sites} activeId={featured.id} onPick={(s) => setFeaturedId(s.id)} />
         </Rise>
       )}
+
+      {/* ---- EV charging ---- */}
+      <Rise className="section" style={{ marginTop: 14 }}>
+        <Link to="/charge" className="card pad row" style={{ gap: 14, background: 'linear-gradient(135deg, #eaf0fd 0%, #ffffff 70%)' }}>
+          <span className="ic lg blue"><BatteryCharging size={22} /></span>
+          <div className="grow">
+            <div style={{ fontWeight: 800, fontSize: 15 }}>Charge your EV with the sun</div>
+            <div className="muted small" style={{ marginTop: 2 }}>Book a bay at a solar EV station. RM 1.20/kWh all day, extra points from 11am to 3pm.</div>
+          </div>
+          <ChevronRight size={18} className="muted" />
+        </Link>
+      </Rise>
 
       {/* ---- go green ---- */}
       <Rise className="section" style={{ marginTop: 14 }}>

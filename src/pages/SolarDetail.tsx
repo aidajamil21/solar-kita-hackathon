@@ -64,7 +64,7 @@ export default function SolarDetail() {
       <Rise>
         <div className="row between" style={{ padding: '8px 0 14px' }}>
           {fromAlert
-            ? <button className="row" style={{ gap: 6, fontWeight: 600, fontSize: 14 }} onClick={() => { nav(-1); openAlerts() }}><ChevronLeft size={20} /> Back to notifications</button>
+            ? <button className="row" style={{ gap: 6, fontWeight: 600, fontSize: 14 }} onClick={() => { nav(-1); if (fromAlert === 'alerts') openAlerts() }}><ChevronLeft size={20} /> Back to {fromAlert === 'alerts' ? 'notifications' : 'Solar Analyst'}</button>
             : <Link to="/solar" className="row" style={{ gap: 6, fontWeight: 600, fontSize: 14 }}><ChevronLeft size={20} /> Back to Projects</Link>}
           <span className="pill green"><Leaf size={12} /> Active</span>
         </div>

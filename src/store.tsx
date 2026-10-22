@@ -20,7 +20,7 @@ export interface Activity {
   type: ActivityType
 }
 
-export type ActivityType = 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle' | 'plan'
+export type ActivityType = 'subscribe' | 'redeem' | 'bonus' | 'event' | 'quiz' | 'checkin' | 'walk' | 'cycle' | 'plan' | 'charge'
 
 export interface Redemption {
   id: string
