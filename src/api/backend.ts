@@ -1,7 +1,9 @@
 import type { GpsPoint, Trip, TripMode } from '../green'
 import type { Alert, ChatMessage, EnvironmentalImpact, PortfolioSummary, ProjectPerformance, RealizedReturn, ScenarioSet } from './types'
 
-const baseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '')
+// VITE_API_URL: the backend's address, or "/" when it runs on the same domain (Vercel); empty = offline demo
+const apiSetting = (import.meta.env.VITE_API_URL as string | undefined)?.trim() ?? ''
+const baseUrl = apiSetting.replace(/\/$/, '')
 
 /* ---------- session (set by the login page, kept in this browser) ---------- */
 
@@ -32,7 +34,7 @@ export function signOut() {
 
 /** the frontend has a backend to talk to (otherwise it runs the local demo) */
 function isConfigured() {
-  return !!baseUrl
+  return apiSetting !== ''
 }
 
 /** a failed API call; `status` is 0 when the server couldn't be reached */
@@ -46,7 +48,7 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!isConfigured()) {
-    throw new ApiError(0, 'Missing VITE_API_URL')
+    throw new ApiError(0, 'VITE_API_URL is not set')
   }
 
   const headers = new Headers(init?.headers)
