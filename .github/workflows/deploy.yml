@@ -27,6 +27,9 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          # public URL of the deployed backend (Settings > Secrets and variables > Actions > Variables).
+          # Leave it unset to publish the offline demo without login.
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
