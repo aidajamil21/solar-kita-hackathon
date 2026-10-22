@@ -1,7 +1,8 @@
 import cors from 'cors'
 import express from 'express'
 import { config } from './config.js'
-import { requireUser } from './auth.js'
+import { authRoutes, requireUser } from './auth.js'
+import { supabase } from './db.js'
 import routes from './routes.js'
 
 const app = express()
@@ -19,6 +20,14 @@ app.get('/', (_req, res) => {
   })
 })
 
+// public: health check and email sign-in
+app.get('/api/health', async (_req, res) => {
+  const { count, error } = await supabase.from('townships').select('id', { count: 'exact', head: true })
+  res.status(error ? 503 : 200).json({ ok: !error, at: new Date().toISOString(), townships: count ?? 0 })
+})
+app.use('/api/auth', authRoutes)
+
+// everything else needs a signed-in resident
 app.use('/api', requireUser, routes)
 
 app.use((err, _req, res, _next) => {

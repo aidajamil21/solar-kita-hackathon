@@ -81,23 +81,27 @@ async function ensureConversation(conversationId, userId) {
   }
 }
 
-router.get('/conversations/:conversationId/messages', h(async (req, res) => {
-  await ensureConversation(req.params.conversationId, req.userId)
+/** the resident's own Solar Analyst conversation (latest, or a new one) */
+async function myConversation(userId) {
+  const rows = await run(supabase.from('conversations').select('id').eq('user_id', userId).order('updated_at', { ascending: false }).limit(1))
+  if (rows[0]) return rows[0].id
+  await me(userId)
+  return (await run(supabase.from('conversations').insert({ user_id: userId, title: 'Solar Analyst' }).select('id')))[0].id
+}
+
+async function listMessages(conversationId) {
   const rows = await run(supabase.from('messages')
     .select('id, role, content, created_at, tool_calls, attachments, suggestions')
-    .eq('conversation_id', req.params.conversationId)
+    .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true }))
-  res.json(rows.map(toMessage))
-}))
+  return rows.map(toMessage)
+}
 
-router.post('/conversations/:conversationId/messages', h(async (req, res) => {
-  const { conversationId } = req.params
-  const text = String(req.body?.text ?? '').trim().slice(0, 2000)
+async function postMessage(conversationId, userId, raw) {
+  const text = String(raw ?? '').trim().slice(0, 2000)
   if (!text) throw new HttpError(400, 'text is required')
-  await ensureConversation(conversationId, req.userId)
-
   await run(supabase.from('messages').insert({ conversation_id: conversationId, role: 'user', content: text }))
-  const reply = await answer(req.userId, text)
+  const reply = await answer(userId, text)
   const [saved] = await run(supabase.from('messages')
     .insert({
       conversation_id: conversationId,
@@ -109,12 +113,28 @@ router.post('/conversations/:conversationId/messages', h(async (req, res) => {
     })
     .select('id, role, content, created_at, tool_calls, attachments, suggestions'))
   await run(supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId))
-  res.json(toMessage(saved))
-}))
+  return toMessage(saved)
+}
 
+const clearMessages = (conversationId) => run(supabase.from('messages').delete().eq('conversation_id', conversationId))
+
+// the signed-in resident's conversation
+router.get('/chat/messages', h(async (req, res) => res.json(await listMessages(await myConversation(req.userId)))))
+router.post('/chat/messages', h(async (req, res) => res.json(await postMessage(await myConversation(req.userId), req.userId, req.body?.text))))
+router.delete('/chat/messages', h(async (req, res) => { await clearMessages(await myConversation(req.userId)); res.status(204).send() }))
+
+// a specific conversation (must be the caller's)
+router.get('/conversations/:conversationId/messages', h(async (req, res) => {
+  await ensureConversation(req.params.conversationId, req.userId)
+  res.json(await listMessages(req.params.conversationId))
+}))
+router.post('/conversations/:conversationId/messages', h(async (req, res) => {
+  await ensureConversation(req.params.conversationId, req.userId)
+  res.json(await postMessage(req.params.conversationId, req.userId, req.body?.text))
+}))
 router.delete('/conversations/:conversationId/messages', h(async (req, res) => {
   await ensureConversation(req.params.conversationId, req.userId)
-  await run(supabase.from('messages').delete().eq('conversation_id', req.params.conversationId))
+  await clearMessages(req.params.conversationId)
   res.status(204).send()
 }))
 

@@ -21,4 +21,8 @@ export const config = {
   serviceRoleKey,
   port: Number(process.env.PORT ?? 2000),
   frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:5173',
+  /** signs login tokens; derived from the service-role key when not set */
+  sessionSecret: process.env.SESSION_SECRET?.trim() || '',
+  /** list every account on the login page for prototype testing (SHOW_TEST_ACCOUNTS=false hides it) */
+  showTestAccounts: process.env.SHOW_TEST_ACCOUNTS?.trim().toLowerCase() !== 'false',
 }

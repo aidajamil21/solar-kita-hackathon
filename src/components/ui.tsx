@@ -1,6 +1,7 @@
 import { animate, AnimatePresence, motion, useDragControls, useMotionValue, useTransform, type DragControls, type Variants } from 'framer-motion'
-import { Check, CheckCircle2, ChevronLeft, X } from 'lucide-react'
+import { Check, CheckCircle2, ChevronLeft, LogOut, X } from 'lucide-react'
 import AlertsButton, { openAlerts } from './AlertsButton'
+import { getSession, signOut } from '../api/backend'
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -42,6 +43,7 @@ export function TopBar({ title = 'Solar Kita', tagline = 'Community Energy-as-a-
       <div className="topbar-actions">
         <AlertsButton />
         <Link to="/me" className="avatar" aria-label="Profile">{initials(name)}</Link>
+        {getSession() && <button className="icon-btn topbar-logout" aria-label="Log out" title="Log out" onClick={signOut}><LogOut size={17} /></button>}
       </div>
     </div>
   )

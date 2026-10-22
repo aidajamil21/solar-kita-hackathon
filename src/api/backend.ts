@@ -2,10 +2,37 @@ import type { GpsPoint, Trip, TripMode } from '../green'
 import type { Alert, ChatMessage, EnvironmentalImpact, PortfolioSummary, ProjectPerformance, RealizedReturn, ScenarioSet } from './types'
 
 const baseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '')
-const userId = (import.meta.env.VITE_DEMO_USER_ID as string | undefined)?.trim()
 
+/* ---------- session (set by the login page, kept in this browser) ---------- */
+
+export interface Session { token: string; email: string; name: string }
+const SESSION_KEY = 'solar-kita-session'
+
+export function getSession(): Session | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    return raw ? JSON.parse(raw) as Session : null
+  } catch {
+    return null
+  }
+}
+export function setSession(s: Session | null) {
+  try {
+    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s))
+    else localStorage.removeItem(SESSION_KEY)
+  } catch { /* storage unavailable */ }
+}
+
+/** forget the session and go back to the login page */
+export function signOut() {
+  setSession(null)
+  window.history.replaceState(null, '', '#/')
+  window.location.reload()
+}
+
+/** the frontend has a backend to talk to (otherwise it runs the local demo) */
 function isConfigured() {
-  return !!baseUrl && !!userId
+  return !!baseUrl
 }
 
 /** a failed API call; `status` is 0 when the server couldn't be reached */
@@ -19,18 +46,25 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!isConfigured()) {
-    throw new ApiError(0, 'Missing VITE_API_URL or VITE_DEMO_USER_ID')
+    throw new ApiError(0, 'Missing VITE_API_URL')
   }
 
   const headers = new Headers(init?.headers)
   headers.set('Content-Type', 'application/json')
-  headers.set('x-user-id', userId!)
+  const session = getSession()
+  if (session) headers.set('Authorization', `Bearer ${session.token}`)
 
   let res: Response
   try {
     res = await fetch(`${baseUrl}${path}`, { ...init, headers })
   } catch {
     throw new ApiError(0, 'Can’t reach the Solar Kita server')
+  }
+
+  if (res.status === 401 && session) {
+    // expired or invalid session: back to the login page
+    setSession(null)
+    window.location.reload()
   }
 
   if (!res.ok) {
@@ -79,6 +113,12 @@ export interface RemoteMe {
 export const backendApi = {
   isConfigured,
 
+  /* sign-in (public) */
+  login: (email: string) => post<{ isNew: true; email: string } | ({ isNew: false } & Session)>('/api/auth/login', { email }),
+  testAccounts: () => request<{ email: string; name: string }[]>('/api/auth/accounts'),
+  register: (email: string, name: string, townshipId: string) => post<Session>('/api/auth/register', { email, name, townshipId }),
+  health: () => request<{ ok: boolean }>('/api/health'),
+
   /* app data */
   getCatalogue: () => request<Catalogue>('/api/catalogue'),
   getMe: () => request<RemoteMe>('/api/me'),
@@ -105,7 +145,10 @@ export const backendApi = {
   markAlertRead: (id: string) => post<void>(`/api/alerts/${encodeURIComponent(id)}/read`),
   markAllAlertsRead: () => post<void>('/api/alerts/read-all'),
 
-  /* Solar Analyst chat */
+  /* Solar Analyst chat: the signed-in resident's own conversation */
+  chatMessages: () => request<ChatMessage[]>('/api/chat/messages'),
+  chatSend: (text: string) => post<ChatMessage>('/api/chat/messages', { text }),
+  chatClear: () => request<void>('/api/chat/messages', { method: 'DELETE' }),
   sendMessage: (conversationId: string, text: string) =>
     post<ChatMessage>(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, { text }),
   listMessages: (conversationId: string) =>

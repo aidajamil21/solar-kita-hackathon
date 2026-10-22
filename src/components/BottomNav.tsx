@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
-import { Gift, House, LayoutGrid, Map, UserRound } from 'lucide-react'
+import { Gift, House, LayoutGrid, LogOut, Map, UserRound } from 'lucide-react'
+import { getSession, signOut } from '../api/backend'
 import { NavLink } from 'react-router-dom'
 import { LogoMark } from './ui'
 
@@ -27,6 +28,7 @@ export default function BottomNav({ hiddenOnPhone = false }: { hiddenOnPhone?: b
           )}
         </NavLink>
       ))}
+      {getSession() && <button className="nav-logout" onClick={signOut}><LogOut size={18} /><span>Log out</span></button>}
     </nav>
   )
 }

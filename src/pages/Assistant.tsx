@@ -8,8 +8,6 @@ import { AttachmentView, ToolTrace } from '../components/chat/Cards'
 import { SAMPLE_CONVERSATION, SUGGESTIONS } from '../components/chat/sample'
 import { useStore } from '../store'
 
-/** the resident's Solar Analyst conversation (created by the backend on first use) */
-const CONVERSATION_ID = (import.meta.env.VITE_DEMO_CONVERSATION_ID as string | undefined)?.trim() || '00000000-0000-4000-8000-000000000001'
 
 /** tiny markdown: paragraphs, "- " bullet lists and **bold** */
 function Rich({ text }: { text: string }) {
@@ -105,7 +103,7 @@ export default function Assistant() {
   useEffect(() => {
     if (!online) return
     let live = true
-    backendApi.listMessages(CONVERSATION_ID)
+    backendApi.chatMessages()
       .then((rows) => { if (live) setMessages(rows) })
       .catch(() => { if (live) setError('Couldn’t load your conversation from the server.') })
     return () => { live = false }
@@ -140,7 +138,7 @@ export default function Assistant() {
     if (online) {
       setPending({ tools: [] })
       try {
-        play(await backendApi.sendMessage(CONVERSATION_ID, q))
+        play(await backendApi.chatSend(q))
       } catch (err) {
         setPending(null)
         setError(err instanceof Error ? err.message : 'The Solar Analyst couldn’t answer just now.')
@@ -162,7 +160,7 @@ export default function Assistant() {
   const clear = () => {
     timers.current.forEach(clearTimeout)
     setMessages([]); setPending(null); setStreaming(null); setError(null)
-    if (online) backendApi.clearMessages(CONVERSATION_ID).catch(() => setError('Couldn’t clear the conversation on the server.'))
+    if (online) backendApi.chatClear().catch(() => setError('Couldn’t clear the conversation on the server.'))
   }
 
   const last = messages[messages.length - 1]

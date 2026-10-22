@@ -27,14 +27,21 @@ npm run dev
 
 Server runs at `http://localhost:2000`.
 
-## Auth model (temporary)
+## Sign-in
 
-Current implementation expects header `x-user-id` on every `/api/*` request.
-Use a real Supabase JWT verification middleware next.
+Residents sign in with just their email (no password) on the app's login page:
+
+- `POST /api/auth/login` with `{ email }` returns `{ isNew: false, token, email, name }` for an existing account, or `{ isNew: true }` for a new email.
+- `POST /api/auth/register` with `{ email, name, townshipId }` creates the Supabase Auth user (profile via the existing trigger, +50 welcome points) and returns a token.
+- Every other `/api/*` call needs `Authorization: Bearer <token>`. Tokens are HMAC-signed by the server (`SESSION_SECRET`, or a secret derived from the service-role key) and last 30 days.
+
+This is prototype-grade: anyone who knows a resident's email can sign in as them. Before real use, send a one-time code (Supabase `signInWithOtp`) and check it in `/api/auth/login`.
+
+`GET /api/health` is public.
 
 ## Endpoints
 
-All endpoints are prefixed with `/api` and require `x-user-id` (the resident's auth.users id).
+All endpoints are prefixed with `/api` and need the sign-in token (see above).
 
 App data (what the frontend loads at startup and writes through):
 
@@ -64,6 +71,7 @@ AI analyst tools:
 Alerts and chat:
 
 - `GET /api/alerts`, `POST /api/alerts/:id/read`, `POST /api/alerts/read-all`
+- `GET|POST|DELETE /api/chat/messages`: the signed-in resident's own conversation
 - `GET|POST|DELETE /api/conversations/:conversationId/messages` (POST `{ text }` returns the Solar Analyst's reply with tool calls, data cards and follow-up suggestions; the conversation is created on first use)
 
 Errors return `{ error }` with a 4xx status for bad input and 500 for server faults.

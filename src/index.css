@@ -422,7 +422,43 @@ body { letter-spacing: -0.005em; }
 .page [id] { scroll-margin-top: 56px; }
 .flash { animation: flash 2s var(--ease); }
 @keyframes flash { 0%, 55% { box-shadow: 0 0 0 3px rgba(242, 0, 0, 0.35); border-radius: var(--r-lg); } 100% { box-shadow: 0 0 0 3px rgba(242, 0, 0, 0); border-radius: var(--r-lg); } }
+/* ---------- login ---------- */
+.login { height: 100dvh; overflow-y: auto; background: var(--bg); display: flex; flex-direction: column; }
+.login-hero { position: relative; flex-shrink: 0; min-height: 300px; color: #fff; overflow: hidden; border-radius: 0 0 30px 30px; isolation: isolate; }
+.login-hero::before { content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(165deg, rgba(232, 0, 0, 0.9) 0%, rgba(255, 49, 0, 0.76) 40%, rgba(255, 110, 0, 0.58) 72%, rgba(255, 163, 0, 0.52) 100%); }
+.login-hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+.login-hero-inner { padding: 26px 22px 64px; }
+.login-logo { display: inline-block; }
+.login-title { font-weight: 800; font-size: 30px; line-height: 1.05; letter-spacing: -0.03em; text-transform: uppercase; margin-top: 8px; }
+.login-title em { font-style: normal; color: #ffc24d; }
+.login-sub { margin-top: 10px; font-size: 13.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.9); max-width: 460px; }
+.login-points { display: none; }
+.login-panel { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 18px 32px; margin-top: -40px; }
+.login-card { width: 100%; max-width: 420px; background: var(--paper); border-radius: 24px; border: 1px solid var(--line); box-shadow: var(--shadow-lg); padding: 24px 20px; position: relative; }
+.login-h { font-weight: 800; font-size: 22px; letter-spacing: -0.03em; }
+.login-test { width: 100%; max-width: 420px; margin-top: 14px; padding: 14px 16px; border-radius: 18px; border: 1.5px dashed #d9d8d2; background: rgba(255, 255, 255, 0.6); }
+.login-note { margin-top: 16px; font-size: 11.5px; color: var(--muted); text-align: center; line-height: 1.5; }
+.field { display: block; }
+.field > span { display: block; font-size: 12px; font-weight: 700; color: var(--ink-2); margin-bottom: 7px; }
+.field-box { display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 14px; border-radius: 14px; border: 1.5px solid var(--line); background: #fafaf8; color: var(--muted); transition: border-color 0.2s, background 0.2s; }
+.field-box:focus-within { border-color: #ffb3a7; background: #fff; color: var(--brand); }
+.field-box input, .field-box select { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
+.field-error { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: var(--rose); }
+@media (min-width: 900px) {
+  .login { flex-direction: row; overflow: hidden; }
+  .login-hero { flex: 1.15; min-height: 0; border-radius: 0; display: flex; align-items: center; }
+  .login-hero-inner { padding: 48px clamp(40px, 6vw, 96px); max-width: 640px; }
+  .login-title { font-size: clamp(40px, 4.4vw, 60px); }
+  .login-sub { font-size: 16px; margin-top: 16px; }
+  .login-points { display: grid; gap: 12px; margin: 26px 0 0; padding: 0; list-style: none; }
+  .login-points li { display: flex; gap: 10px; align-items: center; font-size: 14.5px; font-weight: 600; color: rgba(255, 255, 255, 0.95); }
+  .login-panel { flex: 1; margin: 0; padding: 32px; justify-content: center; overflow-y: auto; }
+  .login-card { padding: 34px 32px; box-shadow: var(--shadow); }
+}
+
 .nav-brand { display: none; }
+.nav-logout { display: none; }
 .nav-phone-hidden { display: none; }
 .site-carousel { position: absolute; left: 0; right: 0; bottom: 86px; z-index: 30; }
 
@@ -455,6 +491,9 @@ body { letter-spacing: -0.005em; }
   .hero .h1 { font-size: 40px; }
   .grid-2 { gap: 14px; }
   .nav-phone-hidden { display: flex; }
+  .nav-logout { display: flex; align-items: center; gap: 8px; padding: 0 18px; margin-left: 6px; color: #8f959e; font-size: 14px; font-weight: 600; border-left: 1px solid var(--line); transition: color 0.2s, background 0.2s; }
+  .nav-logout:hover { color: var(--brand); background: var(--line-2); }
+  .topbar-logout { display: none; }
   .chart { max-width: 560px; margin-inline: auto; }
 
   .ai-fab { right: 32px; bottom: 28px; }

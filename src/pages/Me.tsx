@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion'
-import { Bell, Check, ChevronRight, FileText, Globe2, HelpCircle, Landmark, Leaf, Lock, Map as MapIcon, MapPin, RotateCcw, Shield, Star, Sun, UserRound, Zap } from 'lucide-react'
+import { Bell, Check, ChevronRight, FileText, Globe2, HelpCircle, Landmark, Leaf, LogOut, Lock, Map as MapIcon, MapPin, RotateCcw, Shield, Star, Sun, UserRound, Zap } from 'lucide-react'
 import { createElement, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart, Ring } from '../components/Charts'
 import { Count, Hero, initials, Page, Progress, Rise, Sheet } from '../components/ui'
 import { reloadAlerts } from '../components/AlertsButton'
+import { getSession, signOut } from '../api/backend'
 import { BADGES, KINDS, LEVELS, levelFor, MONTHS, siteById, townshipById, type SiteKind } from '../data'
 import { useStore } from '../store'
 import { asset } from '../asset'
@@ -209,6 +210,12 @@ export default function Me() {
             <span className="ic sm grey"><RotateCcw size={16} /></span>
             <div className="grow"><div className="title">Reset demo data</div><div className="desc">Restore the prototype’s starting state</div></div>
           </button>
+          {getSession() && (
+            <button className="list-row" onClick={signOut}>
+              <span className="ic sm rose"><LogOut size={16} /></span>
+              <div className="grow"><div className="title">Sign out</div><div className="desc">{getSession()?.email}</div></div>
+            </button>
+          )}
         </div>
       </Rise>
 
