@@ -6,12 +6,6 @@
     "subscription": "condo",
     "investment": "condo"
   },
-  "bukit-jelutong": {
-    "investment": "condo"
-  },
-  "bukit-raja": {
-    "investment": "roof"
-  },
   "denai-alam": {
     "subscription": "roof",
     "investment": "roof"

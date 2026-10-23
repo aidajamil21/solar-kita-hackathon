@@ -19,6 +19,8 @@ const EV = 7.9 * 0.75 * 12 + 10
 const ROOFTOP = 7.9 * 12 + 10
 /** sites stay within this distance of the township centre (metres), so the 3D map's home view can frame them all */
 const REACH = 650
+/** the six rooftop-initiative houses must all be within this many metres of their middle */
+const CLUSTER = 40
 /** a farm needs this much open ground: no more than this many buildings within 250 m of its centre */
 const MAX_NEIGHBOURS = 60
 
@@ -77,7 +79,7 @@ class Grid {
   block(x, z, size) { const n = Math.ceil(size / C), [ci, ck] = this.cell(x - size / 2, z - size / 2); for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) this.set(ci + i, ck + k) }
 }
 
-function placeSites(g, prev) {
+function placeSites(g) {
   const buildings = g.buildings.map((b, i) => {
     const p = ptsOf(b.p)
     if (p.length > 2 && p[0][0] === p[p.length - 1][0] && p[0][1] === p[p.length - 1][1]) p.pop()
@@ -174,8 +176,27 @@ function placeSites(g, prev) {
   }
 
   const sites = {}
-  // rooftop homes stay on the real houses fetch-geo.mjs chose
-  if (prev.rooftop?.houses?.length) { sites.rooftop = prev.rooftop; placed.push([prev.rooftop.x, prev.rooftop.z]) }
+  // rooftop initiative: six real houses right next to each other. The map data often has only a few house footprints,
+  // so the nearest six to a spot can be hundreds of metres apart; accept only a tight cluster, else a generated one below.
+  const houseLike = buildings.filter((b) => {
+    const rc = rectOf(b.p)
+    return b.a >= 60 && b.a <= 450 && b.a / rc.area > 0.7 && (!b.h || b.h <= 12) && Math.hypot(...b.c) < REACH
+  })
+  let bestCluster = null
+  for (const seed of houseLike) {
+    const six = houseLike.map((h) => ({ h, d: Math.hypot(h.c[0] - seed.c[0], h.c[1] - seed.c[1]) })).sort((a, b) => a.d - b.d).slice(0, 6).map((x) => x.h)
+    if (six.length < 6) continue
+    const cx = six.reduce((t, h) => t + h.c[0], 0) / 6, cz = six.reduce((t, h) => t + h.c[1], 0) / 6
+    const radius = Math.max(...six.map((h) => Math.hypot(h.c[0] - cx, h.c[1] - cz)))
+    if (radius > CLUSTER) continue
+    const score = Math.abs(Math.hypot(cx, cz) - 250) + radius * 2
+    if (!bestCluster || score < bestCluster.score) bestCluster = { six, cx, cz, score }
+  }
+  if (bestCluster) {
+    sites.rooftop = { x: r1(bestCluster.cx), z: r1(bestCluster.cz), houses: bestCluster.six.map((h) => h.i) }
+    bestCluster.six.forEach((h) => taken.add(h.i))
+    placed.push([sites.rooftop.x, sites.rooftop.z])
+  }
 
   // EV hub: a real car park, else the nearest open spot
   const lots = g.parking.filter((p) => closed(p.p)).map((p) => ({ p: ptsOf(p.p) })).map((l) => ({ ...l, c: centroid(l.p), a: area(l.p) }))
@@ -209,7 +230,7 @@ for (const file of (await readdir('public/geo')).filter((f) => f.endsWith('.json
   const id = file.replace(/\.json$/, '')
   if (only.length && !only.includes(id)) continue
   const g = JSON.parse(await readFile(`public/geo/${file}`, 'utf8'))
-  g.sites = placeSites(g, g.sites ?? {})
+  g.sites = placeSites(g)
   await writeFile(`public/geo/${file}`, JSON.stringify(g))
   const here = Object.fromEntries(Object.entries(g.sites).filter(([, v]) => v.roofs).map(([k, v]) => [k, v.on]))
   if (Object.keys(here).length) onRoofs[id] = here
