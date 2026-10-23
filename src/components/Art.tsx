@@ -1,16 +1,39 @@
-import { useId } from 'react'
-import { KIND_PHOTOS, type SiteKind, type Township } from '../data'
+import { useId, useState } from 'react'
+import { KIND_PHOTOS, type RoofKind, type SiteKind, type Township } from '../data'
 import { asset } from '../asset'
 
-/** Real project photography per initiative type. `hero` picks the wide shot. */
-export function ProjectArt({ kind, hero = false, style, className }: { kind: SiteKind; hero?: boolean; style?: React.CSSProperties; className?: string }) {
-  const ph = KIND_PHOTOS[kind]
-  return <img src={hero ? ph.hero : ph.thumb} alt="" className={`photo ${className ?? ''}`} style={style} loading="lazy" draggable={false} />
+/** roof sites: public/photos/condo_solar.jpg or rooftop_solar.jpg when added, else the rooftop-panels shot */
+const ROOF_PHOTO: Record<RoofKind, string> = { condo: 'photos/condo_solar.jpg', roof: 'photos/rooftop_solar.jpg' }
+
+/** Real project photography per initiative type (`on`: the farm site sits on roofs). `hero` picks the wide shot. */
+export function ProjectArt({ kind, on, hero = false, style, className }: { kind: SiteKind; on?: RoofKind; hero?: boolean; style?: React.CSSProperties; className?: string }) {
+  const ph = KIND_PHOTOS[on ? 'rooftop' : kind]
+  const fallback = hero ? ph.hero : ph.thumb
+  const [failed, setFailed] = useState<string | null>(null)
+  const want = on ? asset(ROOF_PHOTO[on]) : fallback
+  return <img src={failed === want ? fallback : want} alt="" className={`photo ${className ?? ''}`} style={style} loading="lazy" draggable={false} onError={() => setFailed(want)} />
+}
+
+/**
+ * Where to look for a township's photo: its set photo, else a file in /public/photos named after the township id
+ * (`subang-jaya.jpg` or `subang_jaya.jpg`, also .png/.webp), else a snapshot of its 3D map.
+ */
+const townSources = (t: Township) => {
+  const names = [...new Set([t.id, t.id.replace(/-/g, '_')])]
+  const files = names.flatMap((n) => ['jpg', 'png', 'webp'].map((ext) => asset(`photos/${n}.${ext}`)))
+  return [...(t.photo ? [t.photo] : files), asset(`previews/${t.id}.jpg`)]
 }
 
 /** Township photo, or a snapshot of its 3D map when we don't have one */
 export function TownPhoto({ township, className }: { township: Township; className?: string }) {
-  return <img src={township.photo ?? asset(`previews/${township.id}.jpg`)} alt="" className={`photo ${className ?? ''}`} loading="lazy" draggable={false} />
+  const sources = townSources(township)
+  // index of the source being tried; resets when the township changes
+  const [tried, setTried] = useState({ id: township.id, k: 0 })
+  const k = tried.id === township.id ? tried.k : 0
+  return (
+    <img src={sources[k]} alt="" className={`photo ${className ?? ''}`} loading="lazy" draggable={false}
+      onError={() => setTried({ id: township.id, k: Math.min(k + 1, sources.length - 1) })} />
+  )
 }
 
 /** Sime Darby Property RM50 shopping voucher (generated artwork) */

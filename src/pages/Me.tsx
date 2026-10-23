@@ -64,7 +64,7 @@ export default function Me() {
       <Rise className="band">
         <h2 className="h2">Your impact</h2>
         <div className="band-sub">Championing cleaner, greener townships</div>
-        <div className="grid-2" style={{ marginTop: 16 }}>
+        <div className="grid-2 impact-grid" style={{ marginTop: 16 }}>
         <div className="stat" style={{ alignItems: 'flex-start' }}>
           <span className="ic sm green"><Leaf size={16} /></span>
           <div><div className="l">Carbon savings</div><div className="v"><Count value={co2} decimals={1} /><small>tCO₂e</small></div><div className="s">≈ {trees.toLocaleString()} trees / yr</div></div>

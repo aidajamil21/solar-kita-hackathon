@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { BarChart3, ChevronRight, Coins, Leaf, Star } from 'lucide-react'
 import { createElement } from 'react'
-import { KINDS, rm, type Site, type SiteKind } from '../data'
+import { KINDS, rm, roofOf, siteMeta, type Site, type SiteKind } from '../data'
 import { ProjectArt } from './Art'
 import { Coin } from './ui'
 import { Info } from './Info'
@@ -36,7 +36,7 @@ export function ProjectFacts({ site, layout = 'list' }: { site: Site; layout?: '
     )
   }
   return (
-    <div className="list">
+    <div className="list facts-list">
       {rows.map((r) => (
         <div key={r.label} className="list-row" style={{ padding: '10px 0' }}>
           <span className="ic gold">{createElement(r.icon, { size: 18 })}</span>
@@ -56,13 +56,13 @@ export function InitiativeStrip({ sites, activeId, onPick }: { sites: Site[]; ac
   return (
     <div className="hscroll" style={{ gap: 10 }}>
       {sites.map((s) => {
-        const meta = KINDS[s.kind]
+        const meta = siteMeta(s)
         const on = s.id === activeId
         return (
           <motion.button key={s.id} whileTap={{ scale: 0.97 }} onClick={() => onPick(s)} className="card"
             style={{ width: 268, padding: 10, textAlign: 'left', borderColor: on ? 'var(--gold)' : undefined, boxShadow: on ? '0 0 0 1.5px var(--gold)' : undefined }}>
             <div className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
-              <div style={{ width: 70, height: 62, borderRadius: 10, overflow: 'hidden', flexShrink: 0 }}><ProjectArt kind={s.kind} /></div>
+              <div style={{ width: 70, height: 62, borderRadius: 10, overflow: 'hidden', flexShrink: 0 }}><ProjectArt kind={s.kind} on={roofOf(s)} /></div>
               <div className="grow">
                 <div className="row" style={{ gap: 6 }}>
                   {createElement(meta.icon, { size: 14, color: '#E08600' })}

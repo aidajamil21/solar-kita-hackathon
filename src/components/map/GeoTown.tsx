@@ -2,10 +2,10 @@ import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { Site, SiteKind } from '../../data'
-import { extrudeBuildings, flatGeometry, GS, orientedRect, pointInPoly, polyArea, polylineSampler, ptsOf, ribbonGeometry, type GeoData } from './geo'
+import { extrudeBuildings, flatGeometry, GS, orientedRect, pointInPoly, polyArea, polylineSampler, ptsOf, pvTexture, ribbonGeometry, type GeoData, type GeoSite } from './geo'
 import { LEAVES, rng, ROOFS, WALLS, type House, type Layout, type Tree } from './gen'
 import { env, Houses, Trees } from './Scenery'
-import { EnergyFlow, SiteNode, type HouseRect, type SitePlacement, type UnitState } from './Sites'
+import { EnergyFlow, SiteNode, type HouseRect, type RoofRect, type SitePlacement, type UnitState } from './Sites'
 
 export interface GeoTownProps {
   geo: GeoData
@@ -32,9 +32,19 @@ function useProcessed(geo: GeoData, seed: number) {
     const r = rng(seed + 501)
     const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)]
     const rooftopIdx = new Set(geo.sites.rooftop?.houses ?? [])
+    const roofIdx = new Map<number, SiteKind>()
+    for (const [kind, s] of Object.entries(geo.sites) as [SiteKind, GeoSite][]) s.roofs?.forEach((i) => roofIdx.set(i, kind))
     const houses: House[] = []
     const rooftop: HouseRect[] = []
     const extruded: { p: [number, number][]; h: number; color: string }[] = []
+    const siteRoofs: Partial<Record<SiteKind, RoofRect[]>> = {}
+    const decor: RoofRect[] = []
+
+    // ground sites (farms, EV hub, generated rooftop cluster): keep houses and trees off them
+    const pads = (Object.entries(geo.sites) as [SiteKind, GeoSite][])
+      .filter(([kind, s]) => !s.roofs && !(kind === 'rooftop' && s.houses?.length))
+      .map(([kind, s]) => ({ x: s.x * GS, z: s.z * GS, half: (7.9 * SITE_SCALE[kind]) / 2 + 0.4 }))
+    const onPad = (x: number, z: number) => pads.some((q) => Math.abs(x - q.x) < q.half && Math.abs(z - q.z) < q.half)
 
     geo.buildings.forEach((b, i) => {
       const p = ptsOf(b.p)
@@ -44,7 +54,8 @@ function useProcessed(geo: GeoData, seed: number) {
       const rect = orientedRect(p)
       const fill = areaU / Math.max(rect.area, 1e-6)
       const pitched = rooftopIdx.has(i) || ((b.k === 'h' || b.k === 'y') && areaM < 700 && fill > 0.7 && (!b.h || b.h <= 12))
-      if (pitched) {
+      if (pitched && !roofIdx.has(i)) {
+        if (!rooftopIdx.has(i) && onPad(rect.cx, rect.cz)) return
         const dM = rect.d / GS
         const hr: HouseRect = { x: rect.cx, z: rect.cz, w: rect.w, d: rect.d, ry: rect.ry, h: (b.h || 7.5) * GS, roofH: Math.min(dM * 0.38, 3.2) * GS }
         if (rooftopIdx.has(i)) { rooftop.push(hr); return }
@@ -53,6 +64,11 @@ function useProcessed(geo: GeoData, seed: number) {
       }
       const h = b.h || (b.k === 'a' ? 26 + hash(i) * 40 : b.k === 'c' ? 12 + hash(i) * 8 : b.k === 'i' ? 10 : b.k === 'p' ? 12 : areaM > 2000 ? 11 : 8)
       extruded.push({ p, h: h * GS, color: BUILDING_COLORS[b.k] ?? BUILDING_COLORS.y })
+      const roof: RoofRect = { x: rect.cx, z: rect.cz, w: rect.w, d: rect.d, ry: rect.ry, h: h * GS }
+      const kind = roofIdx.get(i)
+      if (kind) (siteRoofs[kind] ??= []).push(roof)
+      // about half the condos already carry panels of their own
+      else if (b.k === 'a' && areaM >= 400 && fill > 0.72 && hash(i + 0.5) < 0.5) decor.push(roof)
     })
 
     const roads = geo.roads.map((x) => ({ p: ptsOf(x.p), w: x.w * GS, color: x.w >= 10 ? '#B7BAB8' : x.w >= 6 ? '#C2C4C1' : '#CDCECA' }))
@@ -78,6 +94,7 @@ function useProcessed(geo: GeoData, seed: number) {
     }
     forest.forEach((p) => scatter(p, 0.9, 500))
     green.forEach((g) => scatter(g.p, 3.5, 120))
+    for (let k = trees.length - 1; k >= 0; k--) if (onPad(trees[k].x, trees[k].z)) trees.splice(k, 1)
     for (const rd of roads) {
       if (rd.w < 0.4 || rd.w > 1.1 || trees.length > 7000) continue
       const s = polylineSampler(rd.p)
@@ -86,16 +103,17 @@ function useProcessed(geo: GeoData, seed: number) {
         if (r() < 0.55) continue
         s.at(t, o)
         const side = r() < 0.5 ? 1 : -1, off = rd.w / 2 + 0.25
-        trees.push({ x: o.x + Math.cos(o.ang) * off * side, z: o.z - Math.sin(o.ang) * off * side, s: 0.32 + r() * 0.15, leaf: pick(LEAVES) })
+        const tx = o.x + Math.cos(o.ang) * off * side, tz = o.z - Math.sin(o.ang) * off * side
+        if (!onPad(tx, tz)) trees.push({ x: tx, z: tz, s: 0.32 + r() * 0.15, leaf: pick(LEAVES) })
       }
     }
 
-    infill(houses, roads, water, rivers, green.map((g) => g.p), forest, parking, extruded.map((b) => b.p), r, pick)
+    infill(houses, roads, water, rivers, green.map((g) => g.p), forest, parking, extruded.map((b) => b.p), pads, r, pick)
 
     const layout: Layout = { houses, boxes: [], trees, towers: [], patches: [], blocks: [] }
     const { walls, roof } = extrudeBuildings(extruded)
     return {
-      layout, rooftop, walls, roof,
+      layout, rooftop, walls, roof, siteRoofs, decor,
       roadGeo: ribbonGeometry(roads, 0.02),
       riverGeo: ribbonGeometry(rivers, 0.03),
       waterGeo: flatGeometry(water, 0.035),
@@ -113,7 +131,7 @@ function useProcessed(geo: GeoData, seed: number) {
 function infill(
   houses: House[], roads: { p: [number, number][]; w: number }[], water: [number, number][][], rivers: { p: [number, number][]; w: number }[],
   greens: [number, number][][], forest: [number, number][][], parking: [number, number][][], blds: [number, number][][],
-  r: () => number, pick: <T>(a: T[]) => T,
+  pads: { x: number; z: number; half: number }[], r: () => number, pick: <T>(a: T[]) => T,
 ) {
   const C = 0.5, H = 100, N = Math.ceil((2 * H) / C)
   const occ = new Uint8Array(N * N)
@@ -139,6 +157,7 @@ function infill(
   ;[...water, ...greens, ...forest, ...parking].forEach((p) => markPoly(p))
   blds.forEach((p) => markPoly(p, 0.6))
   houses.forEach((h) => markDisc(h.x, h.z, Math.max(h.w, h.d) / 2 + 0.3))
+  pads.forEach((q) => markPoly([[q.x - q.half, q.z - q.half], [q.x + q.half, q.z - q.half], [q.x + q.half, q.z + q.half], [q.x - q.half, q.z + q.half]], 0.5))
 
   const free = (x: number, z: number) => { const j = idx(x, z); return j >= 0 && !occ[j] }
   const o = { x: 0, z: 0, ang: 0 }
@@ -198,11 +217,16 @@ export default function GeoTown(props: GeoTownProps) {
     const out = new Map<string, SitePlacement>()
     sites.forEach((s, k) => {
       const g = geo.sites[s.kind]
+      const roofs = d.siteRoofs[s.kind]
       if (s.kind === 'rooftop' && d.rooftop.length) {
         const xs = d.rooftop.map((h) => h.x), zs = d.rooftop.map((h) => h.z)
         const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2
         const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) + 2.2
         out.set(s.id, { x: cx, z: cz, scale: 1, glow: Math.min(span, 9), houses: d.rooftop })
+      } else if (g && roofs?.length) {
+        const x = g.x * GS, z = g.z * GS
+        const span = Math.max(...roofs.map((q) => Math.max(Math.abs(q.x - x), Math.abs(q.z - z)) * 2 + Math.max(q.w, q.d)))
+        out.set(s.id, { x, z, scale: 1, glow: Math.min(span, 16), roofs, y: Math.max(...roofs.map((q) => q.h)) + 0.4 })
       } else {
         const sc = SITE_SCALE[s.kind]
         const x = g ? g.x * GS : (k - 1.5) * 14, z = g ? g.z * GS : 30
@@ -210,7 +234,7 @@ export default function GeoTown(props: GeoTownProps) {
       }
     })
     return out
-  }, [sites, geo, d.rooftop])
+  }, [sites, geo, d.rooftop, d.siteRoofs])
 
   const sources = useMemo(
     () => sites.filter((s) => props.filter === 'all' || s.kind === props.filter).map((s) => { const p = placements.get(s.id)!; return [p.x, p.z] as [number, number] }),
@@ -236,6 +260,7 @@ export default function GeoTown(props: GeoTownProps) {
       <mesh geometry={d.roof} castShadow receiveShadow>
         <meshStandardMaterial vertexColors roughness={0.85} side={THREE.DoubleSide} />
       </mesh>
+      <RoofPanels roofs={d.decor} />
       <Houses layout={d.layout} />
       <Trees layout={d.layout} />
       <GeoCars lanes={d.lanes} seed={props.seed} />
@@ -259,6 +284,39 @@ export default function GeoTown(props: GeoTownProps) {
       ))}
       {props.flow && <EnergyFlow sources={sources} homes={d.homes} seed={props.seed} />}
     </group>
+  )
+}
+
+/* ---------- decorative PV rows on condo roofs (not part of any site) ---------- */
+function RoofPanels({ roofs }: { roofs: RoofRect[] }) {
+  const panels = useMemo(() => {
+    const out: { x: number; z: number; y: number; ry: number; w: number; d: number }[] = []
+    for (const q of roofs) {
+      const n = Math.max(1, Math.min(8, Math.floor((q.d * 0.8) / 0.55)))
+      const c = Math.cos(q.ry), s = Math.sin(q.ry)
+      for (let k = 0; k < n; k++) {
+        const off = -q.d * 0.38 + ((k + 0.5) * q.d * 0.76) / n
+        out.push({ x: q.x + off * s, z: q.z + off * c, y: q.h + 0.15, ry: q.ry, w: q.w * 0.78, d: Math.min(0.32, (q.d * 0.76) / n - 0.08) })
+      }
+    }
+    return out
+  }, [roofs])
+  const ref = useRef<THREE.InstancedMesh>(null)
+  const map = useMemo(() => { const t = pvTexture().clone(); t.repeat.set(6, 1); t.needsUpdate = true; return t }, [])
+  useLayoutEffect(() => {
+    if (!ref.current) return
+    panels.forEach((p, i) => {
+      tmp.position.set(p.x, p.y, p.z); tmp.rotation.set(0.3, p.ry, 0, 'YXZ'); tmp.scale.set(p.w, 1, p.d)
+      tmp.updateMatrix(); ref.current!.setMatrixAt(i, tmp.matrix)
+    })
+    ref.current.instanceMatrix.needsUpdate = true
+  }, [panels])
+  if (!panels.length) return null
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, panels.length]} castShadow>
+      <boxGeometry args={[1, 0.04, 1]} />
+      <meshStandardMaterial map={map} color="#C9D3E2" roughness={0.25} metalness={0.45} />
+    </instancedMesh>
   )
 }
 

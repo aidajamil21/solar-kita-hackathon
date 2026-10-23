@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import { CalendarCheck, Car, Flower2, House, LayoutGrid, Leaf, PlugZap, Refrigerator, ShoppingBag, Sprout, SquareParking, Sun, Target, Ticket, TreePine, TrendingUp, Users } from 'lucide-react'
 import type { Catalogue } from './api/backend'
 import { asset } from './asset'
+import ROOF_SITES from './roof-sites.json'
 
 export type SiteKind = 'subscription' | 'investment' | 'rooftop' | 'ev'
 
@@ -276,6 +277,60 @@ for (const t of TOWNSHIPS) {
   }
 }
 
+/* ---------- farm sites on roofs ----------
+   Crowded townships have no open land for a farm, so their subscription / investment sites sit on condo roofs
+   (or, failing that, other big flat roofs). scripts/place-sites.mjs picks them and writes src/roof-sites.json.
+   Only names and wording change: ids, prices and units stay the same, so existing subscriptions are untouched. */
+export type RoofKind = 'condo' | 'roof'
+type FarmKind = 'subscription' | 'investment'
+const isFarm = (k: SiteKind): k is FarmKind => k === 'subscription' || k === 'investment'
+
+export const roofOf = (s: Pick<Site, 'townshipId' | 'kind'>): RoofKind | undefined =>
+  isFarm(s.kind) ? (ROOF_SITES as Record<string, Partial<Record<FarmKind, RoofKind>>>)[s.townshipId]?.[s.kind] : undefined
+
+const ROOF_META: Record<RoofKind, Record<FarmKind, Pick<KindMeta, 'label' | 'blurb'>>> = {
+  condo: {
+    subscription: { label: 'Condo Solar Subscription', blurb: 'Flexible subscription for solar panels on condominium roofs. Clean energy from the rooftops of your township.' },
+    investment: { label: 'Condo Solar Investment', blurb: 'Invest in larger solar arrays across condominium roofs for long-term value.' },
+  },
+  roof: {
+    subscription: { label: 'Rooftop Solar Subscription', blurb: 'Flexible subscription for solar panels on big township roofs like malls, schools and offices.' },
+    investment: { label: 'Rooftop Solar Investment', blurb: 'Invest in solar arrays on big township roofs like malls, schools and offices for long-term value.' },
+  },
+}
+const ROOF_NAMES: Record<RoofKind, Record<FarmKind, string>> = {
+  condo: { subscription: 'Condo Solar', investment: 'Condo Solar Array' },
+  roof: { subscription: 'Rooftop Solar', investment: 'Rooftop Solar Array' },
+}
+
+/** KINDS[site.kind], with roof wording for farm sites that sit on roofs */
+export function siteMeta(site: Pick<Site, 'townshipId' | 'kind'>): KindMeta {
+  const on = roofOf(site)
+  return on && isFarm(site.kind) ? { ...KINDS[site.kind], ...ROOF_META[on][site.kind] } : KINDS[site.kind]
+}
+
+/** rename roof sites and scale their figures to what a few roofs can hold (farm-sized MW would be implausible) */
+function fitToRoofs(sites: Site[]) {
+  for (const site of sites) {
+    const on = roofOf(site)
+    if (!on || !isFarm(site.kind)) continue
+    const t = TOWNSHIPS.find((x) => x.id === site.townshipId)
+    const short = (t?.name ?? site.townshipId).replace(/^(City of|Bandar|Taman) /, '').split(' ')[0]
+    site.name = `${short} ${ROOF_NAMES[on][site.kind]}`
+    const roofs = on === 'condo' ? 'condominium roofs' : 'mall, school and office roofs'
+    const town = t?.name ?? 'the township'
+    site.description = site.kind === 'subscription'
+      ? `Panel blocks on ${roofs} across ${town}, supplying clean energy to the homes and shops around them.`
+      : `Larger solar arrays on ${roofs} in ${town}. Bigger units, longer horizon, stronger returns.`
+    if (site.capacityMW > 2) {
+      const k = (site.kind === 'investment' ? 1.6 : 0.8) / site.capacityMW
+      site.capacityMW = Math.round(site.capacityMW * k * 10) / 10
+      site.homesPowered = Math.round(site.homesPowered * k)
+    }
+  }
+}
+fitToRoofs(SITES)
+
 export const siteById = (id: string) => SITES.find((s) => s.id === id)
 export const townshipById = (id: string) => TOWNSHIPS.find((t) => t.id === id)!
 
@@ -345,6 +400,7 @@ function mergeInPlace<T extends { id: string }>(target: T[], incoming: T[]) {
 export function hydrateCatalogue(c: Catalogue) {
   mergeInPlace(TOWNSHIPS, c.townships.map((t) => ({ ...t, photo: t.photo ? asset(t.photo) : null })))
   mergeInPlace(SITES, c.sites.map((s) => ({ ...s, block: s.block as [number, number], blocks: s.blocks ?? 1 })))
+  fitToRoofs(SITES)
   const prev = new Map(REWARDS.map((r) => [r.id, r]))
   mergeInPlace(REWARDS, c.rewards.map((r) => ({
     id: r.id,

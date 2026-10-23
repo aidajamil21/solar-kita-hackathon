@@ -46,8 +46,10 @@ src/
 public/
   geo/*.json             ← pre-downloaded OpenStreetMap data per township
   previews/*.jpg         ← 3D map snapshots used as thumbnails
-  photos/                ← photography
+  photos/                ← photography (township photos: <township-id>.jpg, see Photos below)
 scripts/fetch-geo.mjs    ← regenerates public/geo from OpenStreetMap
+scripts/place-sites.mjs  ← picks where each solar site sits on the map (run after fetch-geo)
+src/roof-sites.json      ← farm sites that sit on roofs, written by place-sites.mjs
 ```
 
 ## Backend integration
@@ -76,22 +78,45 @@ Every data response carries `DataMeta` (`basis: 'verified' | 'forecast'`, `asOf`
 - `src/components/AlertsButton.tsx` → load alerts from `get_active_alerts`; call a mark-read endpoint.
 - Put the API base URL in `.env.local` as `VITE_API_URL=` (see `.env.example`) and read it with `import.meta.env.VITE_API_URL`.
 
-**CORS:** the deployed frontend runs on `https://aidajamil21.github.io`, so the backend must allow that origin (and `http://localhost:5173` for development).
+**CORS:** the deployed frontend runs on `https://solarkita123.github.io` (and the Vercel domain), so the backend must allow that origin (and `http://localhost:5173` for development).
 
 **Suggested open-source pieces** (from the design notes): OpenEMS for energy/inverter data, Novu for notifications.
 
 ## Deployment
 
-Every push to `main` builds and deploys to **GitHub Pages** through `.github/workflows/deploy.yml`. The workflow sets `BASE_PATH=/<repo-name>/`, and every file in `public/` is referenced through `asset()` (`src/asset.ts`), so paths work under that sub-folder.
+Every push to `main` deploys to two places:
+
+- **Vercel**: the repo is connected to the Vercel project, which builds the frontend and serves the backend from `api/` (see `vercel.json`). Environment variables (Supabase keys, `VITE_API_URL`) are set in the Vercel project settings, not in this repo.
+- **GitHub Pages**: `.github/workflows/deploy.yml` builds the frontend. The workflow sets `BASE_PATH=/<repo-name>/`, and every file in `public/` is referenced through `asset()` (`src/asset.ts`), so paths work under that sub-folder.
 
 To embed the app in another website:
 
 ```html
-<iframe src="https://aidajamil21.github.io/solar-kita-hackathon/" width="400" height="860" style="border:0;border-radius:24px"></iframe>
+<iframe src="https://solarkita123.github.io/solar-kita-hackathon/" width="400" height="860" style="border:0;border-radius:24px"></iframe>
 ```
 
 ## Map data
 
-Each township's 3D map is built from **OpenStreetMap** (buildings, roads, water, parks) and pre-downloaded into `public/geo/`. To refresh it: `node scripts/fetch-geo.mjs [township-id…]`. Where OSM lacks house footprints, terrace houses are filled in along real residential streets. Solar site locations are illustrative, not real projects.
+Each township's 3D map is built from **OpenStreetMap** (buildings, roads, water, parks) and pre-downloaded into `public/geo/`. Where OSM lacks house footprints, terrace houses are filled in along real residential streets. Solar site locations are illustrative, not real projects.
+
+To refresh the map data, run both scripts, in this order:
+
+```bash
+node scripts/fetch-geo.mjs [township-id…]    # download OSM data
+node scripts/place-sites.mjs [township-id…]  # place the solar sites
+```
+
+`place-sites.mjs` only puts a **ground solar farm** on open land: it keeps clear of buildings, lakes, rivers, forests, parks and residential streets, and rejects land surrounded by housing. Crowded townships have no such land, so their Subscription / Investment sites go on **condo roofs** instead (or other big flat roofs such as malls and schools, when there aren't enough condos). It records those sites in `src/roof-sites.json`, and the app then shows them as *Condo Solar* / *Rooftop Solar* instead of *Solar Farm* (`siteMeta()` and `fitToRoofs()` in `src/data.ts`). Only the name, description and capacity shown change: site ids, prices and units stay the same, so existing subscriptions in the database are unaffected.
+
+After refreshing, re-take the `public/previews/` snapshots so the Home page thumbnails match the new site positions.
+
+## Photos
+
+Drop images into `public/photos/` and the app picks them up, with no code change:
+
+- **Township photos**: named after the township id, e.g. `subang-jaya.jpg` (`.png` / `.webp` and `subang_jaya.jpg` also work). Without one, the township shows its 3D map snapshot. Ids: `subang-jaya`, `putra-heights`, `bukit-jelutong`, `denai-alam`, `saujana-impian`, `melawati`, `klgcc`, `nilai-impian`, `planters-haven`, `ainsdale`, `pagoh`.
+- **Roof solar sites**: `condo_solar.jpg` and `rooftop_solar.jpg`. Until added, these sites use the houses-with-solar photo.
+
+Keep each image under about 300 KB.
 
 Map data © OpenStreetMap contributors (ODbL).

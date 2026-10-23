@@ -1,0 +1,35 @@
+{
+  "ara": {
+    "subscription": "condo",
+    "investment": "condo"
+  },
+  "bukit-raja": {
+    "investment": "roof"
+  },
+  "denai-alam": {
+    "subscription": "condo",
+    "investment": "condo"
+  },
+  "klgcc": {
+    "investment": "condo"
+  },
+  "melawati": {
+    "subscription": "condo",
+    "investment": "condo"
+  },
+  "nilai-impian": {
+    "investment": "condo"
+  },
+  "putra-heights": {
+    "subscription": "condo",
+    "investment": "roof"
+  },
+  "saujana-impian": {
+    "subscription": "condo",
+    "investment": "condo"
+  },
+  "subang-jaya": {
+    "subscription": "condo",
+    "investment": "condo"
+  }
+}

@@ -1,9 +1,10 @@
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { createElement, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
-import { KINDS, type Site } from '../../data'
+import { siteMeta, type Site } from '../../data'
 import { blockCenter, rng, ROOFTOP_SLOTS } from './gen'
 import { env, gableGeometry } from './Scenery'
+import { pvTexture } from './geo'
 
 export type UnitState = 'free' | 'taken' | 'mine' | 'sel'
 
@@ -28,28 +29,6 @@ const UNIT: Record<UnitState, { c: string; e: string; base: number }> = {
 function setCursor(on: boolean) { document.body.style.cursor = on ? 'pointer' : '' }
 
 /* ---------- textures ---------- */
-let pvTex: THREE.CanvasTexture | null = null
-function pvTexture() {
-  if (pvTex) return pvTex
-  const c = document.createElement('canvas')
-  c.width = 128; c.height = 64
-  const g = c.getContext('2d')!
-  const grd = g.createLinearGradient(0, 0, 128, 64)
-  grd.addColorStop(0, '#22385F'); grd.addColorStop(0.5, '#1A2D4E'); grd.addColorStop(1, '#2A4370')
-  g.fillStyle = grd
-  g.fillRect(0, 0, 128, 64)
-  g.strokeStyle = 'rgba(190,210,240,.45)'
-  g.lineWidth = 1
-  for (let x = 0; x <= 128; x += 16) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, 64); g.stroke() }
-  for (let y = 0; y <= 64; y += 16) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(128, y + 0.5); g.stroke() }
-  g.strokeStyle = '#D9DEE4'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, 125, 61)
-  pvTex = new THREE.CanvasTexture(c)
-  pvTex.wrapS = pvTex.wrapT = THREE.RepeatWrapping
-  pvTex.colorSpace = THREE.SRGBColorSpace
-  pvTex.anisotropy = 8
-  return pvTex
-}
-
 let glowTex: THREE.CanvasTexture | null = null
 function glowTexture() {
   if (glowTex) return glowTex
@@ -115,7 +94,7 @@ function Unit({ w, d, state, tilt = 0.35, onClick, legs = true }: { w: number; d
 }
 
 /* ---------- golden glow pool + outline + pulse ---------- */
-function Glow({ selected, dimmed, size = 8.2 }: { selected: boolean; dimmed: boolean; size?: number }) {
+function Glow({ selected, dimmed, size = 8.2, depth }: { selected: boolean; dimmed: boolean; size?: number; depth?: number }) {
   const pool = useRef<THREE.MeshBasicMaterial>(null)
   const edges = useRef<THREE.MeshBasicMaterial>(null)
   const ring = useRef<THREE.Mesh>(null)
@@ -132,21 +111,22 @@ function Glow({ selected, dimmed, size = 8.2 }: { selected: boolean; dimmed: boo
       ringMat.current.opacity = selected ? (1 - p) * 0.9 : 0
     }
   })
-  const s = size
+  const s = size, sd = depth ?? size
+  const f = Math.max(s, sd) > 10 ? 1.25 : 1.55
   return (
     <group position={[0, 0.1, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-        <planeGeometry args={[s * (s > 10 ? 1.25 : 1.55), s * (s > 10 ? 1.25 : 1.55)]} />
+        <planeGeometry args={[s * f, sd * f]} />
         <meshBasicMaterial ref={pool} map={glowTexture()} transparent opacity={0.8} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </mesh>
-      {[[0, s / 2, s + 0.14, 0.14], [0, -s / 2, s + 0.14, 0.14], [s / 2, 0, 0.14, s], [-s / 2, 0, 0.14, s]].map(([x, z, w, d], i) => (
+      {[[0, sd / 2, s + 0.14, 0.14], [0, -sd / 2, s + 0.14, 0.14], [s / 2, 0, 0.14, sd], [-s / 2, 0, 0.14, sd]].map(([x, z, w, d], i) => (
         <mesh key={i} position={[x, 0.05, z]}>
           <boxGeometry args={[w, 0.1, d]} />
           <meshBasicMaterial ref={i === 0 ? edges : undefined} color={edgeColor} transparent opacity={0.8} toneMapped={false} />
         </mesh>
       ))}
       <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <ringGeometry args={[s * 0.72, s * 0.75, 96]} />
+        <ringGeometry args={[Math.max(s, sd) * 0.72, Math.max(s, sd) * 0.75, 96]} />
         <meshBasicMaterial ref={ringMat} color={edgeColor} transparent opacity={0} depthWrite={false} toneMapped={false} />
       </mesh>
     </group>
@@ -344,23 +324,63 @@ function RealRooftops({ v, houses, cx, cz }: { v: SiteView; houses: HouseRect[];
   )
 }
 
+/* ---------- farm sites in crowded townships: panel arrays on condo and other flat roofs ---------- */
+export interface RoofRect { x: number; z: number; w: number; d: number; ry: number; h: number }
+function RoofArrays({ v, roofs, cx, cz }: { v: SiteView; roofs: RoofRect[]; cx: number; cz: number }) {
+  // share the rows out by roof area, at least one per roof
+  const rows = rowsOf(v.site)
+  const total = roofs.reduce((s, r) => s + r.w * r.d, 0)
+  const counts = roofs.map((r) => Math.max(1, Math.floor((rows * r.w * r.d) / total)))
+  for (let k = 0, left = rows - counts.reduce((s, n) => s + n, 0); left > 0; k++, left--) counts[k % counts.length]++
+  const starts = counts.map((_, i) => counts.slice(0, i).reduce((s, n) => s + n, 0))
+  return (
+    <group>
+      {roofs.map((r, ri) => {
+        const m = counts[ri]
+        const cols = Math.max(1, Math.min(m, Math.round(Math.sqrt((m * r.w) / r.d))))
+        const lines = Math.ceil(m / cols)
+        const cw = (r.w * 0.86) / cols, cd = (r.d * 0.84) / lines
+        return (
+          <group key={ri} position={[r.x - cx, r.h + 0.09, r.z - cz]} rotation={[0, r.ry, 0]}>
+            <Glow selected={v.selected} dimmed={v.dimmed} size={r.w + 0.3} depth={r.d + 0.3} />
+            <mesh position={[0, 0.02, 0]} receiveShadow>
+              <boxGeometry args={[r.w * 0.92, 0.03, r.d * 0.9]} />
+              <meshStandardMaterial color="#D8D6D0" roughness={1} />
+            </mesh>
+            {Array.from({ length: m }, (_, j) => {
+              const col = j % cols, line = Math.floor(j / cols)
+              return (
+                <group key={j} position={[-r.w * 0.43 + cw * (col + 0.5), 0.06, -r.d * 0.42 + cd * (line + 0.5)]}>
+                  <BlockRow v={v} row={starts[ri] + j} w={cw * 0.92} d={Math.min(cd * 0.62, 1.4)} tilt={0.3} legs={false} />
+                </group>
+              )
+            })}
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+
 /* ---------- a whole site: model + glow + pin anchor ---------- */
-export interface SitePlacement { x: number; z: number; scale: number; glow: number; houses?: HouseRect[] }
+export interface SitePlacement { x: number; z: number; scale: number; glow: number; houses?: HouseRect[]; roofs?: RoofRect[]; y?: number }
 export function SiteNode({ v, anchors, at }: { v: SiteView; anchors: Map<string, THREE.Object3D>; at?: SitePlacement }) {
   const { site } = v
   const cx = at ? at.x : blockCenter(site.block[0]), cz = at ? at.z : blockCenter(site.block[1])
   const k = at?.scale ?? 1
   return (
     <group position={[cx, 0, cz]}>
-      <Glow selected={v.selected} dimmed={v.dimmed} size={at?.glow ?? 8.2} />
+      {!at?.roofs && <Glow selected={v.selected} dimmed={v.dimmed} size={at?.glow ?? 8.2} />}
       {at?.houses ? (
         <RealRooftops v={v} houses={at.houses} cx={cx} cz={cz} />
+      ) : at?.roofs ? (
+        <RoofArrays v={v} roofs={at.roofs} cx={cx} cz={cz} />
       ) : (
         <group scale={k}>
           {site.kind === 'rooftop' ? <Rooftops v={v} /> : site.kind === 'ev' ? <EvHub v={v} /> : <Farm v={v} />}
         </group>
       )}
-      <group position={[0, 0.3 * k, 0]} ref={(o) => { if (o) anchors.set(site.id, o); else anchors.delete(site.id) }} />
+      <group position={[0, at?.y ?? 0.3 * k, 0]} ref={(o) => { if (o) anchors.set(site.id, o); else anchors.delete(site.id) }} />
     </group>
   )
 }
@@ -411,7 +431,7 @@ export function Pin({ site, selected, compact, dimmed, mine, onSelect, register 
   site: Site; selected: boolean; compact: boolean; dimmed: boolean; mine: number; onSelect: () => void
   register: (el: HTMLElement | null) => void
 }) {
-  const meta = KINDS[site.kind]
+  const meta = siteMeta(site)
   return (
     <div ref={register} className="pin-anchor" data-stem={compact ? 20 : STEM[site.kind]} style={{ visibility: 'hidden', pointerEvents: dimmed ? 'none' : 'auto' }}>
       <div

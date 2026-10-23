@@ -8,7 +8,7 @@ import type { MapApi } from '../components/map/TownshipMap'
 import { AlertBack, Coin, Progress, Sheet, SuccessMark, useFromAlert } from '../components/ui'
 import { InvestGuide } from '../components/InvestGuide'
 import { ProjectFacts } from '../components/ProjectFacts'
-import { KINDS, rm, SITES, siteById, STATES, TOWNSHIPS, townshipById, unitGridCols, unitLabel, type Site, type SiteKind } from '../data'
+import { KINDS, rm, roofOf, siteMeta, SITES, siteById, STATES, TOWNSHIPS, townshipById, unitGridCols, unitLabel, type Site, type SiteKind } from '../data'
 import { useStore } from '../store'
 import { Info } from '../components/Info'
 import { HELP } from '../help'
@@ -272,13 +272,13 @@ function MapLoading({ mode }: { mode: '3d' | '2d' }) {
 /* ---------- carousel card ---------- */
 function SiteCard({ site, onClick }: { site: Site; onClick: () => void }) {
   const store = useStore()
-  const meta = KINDS[site.kind]
+  const meta = siteMeta(site)
   const mine = store.mineFor(site).size
   const free = site.units - site.taken.length - mine
   return (
     <motion.button whileTap={{ scale: 0.98 }} className="card tap" style={{ width: 286, padding: 10, borderRadius: 18, boxShadow: '0 10px 30px -14px rgba(16,24,40,.35)' }} onClick={onClick}>
       <div className="row" style={{ gap: 10 }}>
-        <div className="cushion" style={{ width: 74, height: 64, flexShrink: 0 }}><ProjectArt kind={site.kind} /></div>
+        <div className="cushion" style={{ width: 74, height: 64, flexShrink: 0 }}><ProjectArt kind={site.kind} on={roofOf(site)} /></div>
         <div className="grow">
           <div className="row" style={{ gap: 6 }}>
             <span className="pill" style={{ height: 20, fontSize: 10, padding: '0 7px' }}>{createElement(meta.icon, { size: 10 })} {meta.short}</span>
@@ -311,7 +311,7 @@ function SiteSheet(props: {
   const { site, selection } = props
   const nav = useNavigate()
   const store = useStore()
-  const meta = KINDS[site.kind]
+  const meta = siteMeta(site)
   const township = townshipById(site.townshipId)
   const mine = store.mineFor(site).size
   const n = selection.length
@@ -341,7 +341,7 @@ function SiteSheet(props: {
 
       <div className="sheet-body" style={{ flex: 1, paddingBottom: 12 }}>
         <div className="row" style={{ alignItems: 'flex-start' }}>
-          <div className="cushion" style={{ width: 104, height: 90, flexShrink: 0 }}><ProjectArt kind={site.kind} /></div>
+          <div className="cushion" style={{ width: 104, height: 90, flexShrink: 0 }}><ProjectArt kind={site.kind} on={roofOf(site)} /></div>
           <div className="grow">
             <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
               <span className="pill">{createElement(meta.icon, { size: 12 })} {meta.label}</span>
@@ -491,7 +491,7 @@ function TownshipPicker({ open, onClose, current, onPick }: { open: boolean; onC
 /* ---------- confirm + success ---------- */
 function ConfirmSheet({ open, site, units, onClose, onDone }: { open: boolean; site: Site; units: number[]; onClose: () => void; onDone: (go: boolean) => void }) {
   const store = useStore()
-  const meta = KINDS[site.kind]
+  const meta = siteMeta(site)
   const [method, setMethod] = useState('fpx')
   const [agree, setAgree] = useState(true)
   const [phase, setPhase] = useState<'review' | 'paying' | 'done'>('review')
@@ -535,7 +535,7 @@ function ConfirmSheet({ open, site, units, onClose, onDone }: { open: boolean; s
           <h2 className="h2" style={{ fontSize: 20 }}>Review & confirm</h2>
           <div className="card" style={{ marginTop: 14, overflow: 'hidden' }}>
             <div className="row" style={{ padding: 12 }}>
-              <div className="cushion" style={{ width: 62, height: 54, flexShrink: 0 }}><ProjectArt kind={site.kind} /></div>
+              <div className="cushion" style={{ width: 62, height: 54, flexShrink: 0 }}><ProjectArt kind={site.kind} on={roofOf(site)} /></div>
               <div className="grow">
                 <div style={{ fontWeight: 800 }}>{site.name}</div>
                 <div className="muted small">{meta.label} · {meta.unitName}s {units.map((u) => unitLabel(site, u)).join(', ')}</div>

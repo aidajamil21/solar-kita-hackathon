@@ -4,7 +4,7 @@ import { createElement, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ProjectArt, TownPhoto } from '../components/Art'
 import { Count, Hero, Page, Progress, Rise } from '../components/ui'
-import { KINDS, levelFor, SITES, TOWNSHIPS, townshipById } from '../data'
+import { levelFor, roofOf, siteMeta, SITES, TOWNSHIPS, townshipById } from '../data'
 import { InitiativeStrip, ProjectFacts } from '../components/ProjectFacts'
 import { useStore } from '../store'
 import { asset } from '../asset'
@@ -19,7 +19,7 @@ export default function Home() {
   const sites = useMemo(() => SITES.filter((s) => s.townshipId === township.id), [township.id])
   const [featuredId, setFeaturedId] = useState<string | null>(null)
   const featured = sites.find((s) => s.id === featuredId) ?? sites.find((s) => s.kind === 'subscription') ?? sites[0]
-  const meta = KINDS[featured.kind]
+  const meta = siteMeta(featured)
 
   return (
     <Page>
@@ -48,10 +48,11 @@ export default function Home() {
         </div>
       </Rise>
 
+      <div className="home-duo">
       {/* ---- 3D map preview ---- */}
       <Rise className="section" style={{ marginTop: 14 }}>
         <motion.button whileTap={{ scale: 0.985 }} onClick={() => nav('/explore')} className="card tap" style={{ overflow: 'hidden', padding: 0 }}>
-          <div style={{ height: 230, position: 'relative', background: '#EEF0EC' }}>
+          <div className="map-preview" style={{ height: 230, position: 'relative', background: '#EEF0EC' }}>
             <AnimatePresence mode="popLayout">
               <motion.img key={township.id} src={asset(`previews/${township.id}.jpg`)} alt={`3D map of ${township.name}`} className="photo"
                 initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} />
@@ -74,7 +75,7 @@ export default function Home() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={featured.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }}>
               <button className="row" style={{ alignItems: 'flex-start', width: '100%', textAlign: 'left' }} onClick={() => nav(`/explore?site=${featured.id}`)}>
-                <div className="cushion" style={{ width: 104, height: 92, flexShrink: 0 }}><ProjectArt kind={featured.kind} /></div>
+                <div className="cushion" style={{ width: 104, height: 92, flexShrink: 0 }}><ProjectArt kind={featured.kind} on={roofOf(featured)} /></div>
                 <div className="grow">
                   <span className="pill">{createElement(meta.icon, { size: 12 })} Solar project</span>
                   <div style={{ fontWeight: 800, fontSize: 16, marginTop: 6, lineHeight: 1.2 }}>{meta.label}</div>
@@ -92,6 +93,7 @@ export default function Home() {
           </div>
         </div>
       </Rise>
+      </div>
 
       {/* ---- every initiative in this township ---- */}
       {sites.length > 1 && (
@@ -106,6 +108,7 @@ export default function Home() {
         </Rise>
       )}
 
+      <div className="home-pair">
       {/* ---- EV charging ---- */}
       <Rise className="section" style={{ marginTop: 14 }}>
         <Link to="/charge" className="card pad row" style={{ gap: 14, background: 'linear-gradient(135deg, #eaf0fd 0%, #ffffff 70%)' }}>
@@ -129,6 +132,7 @@ export default function Home() {
           <ChevronRight size={18} className="muted" />
         </Link>
       </Rise>
+      </div>
 
       {/* ---- points ---- */}
       <Rise className="section" style={{ marginTop: 14 }}>

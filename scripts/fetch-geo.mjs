@@ -1,5 +1,6 @@
 // Downloads OpenStreetMap data for each Sime Darby Property township and writes a compact,
 // render-ready JSON file per township to public/geo/. Run once: `node scripts/fetch-geo.mjs [id...]`
+// Then run `node scripts/place-sites.mjs [id...]`: it replaces the rough site spots chosen here.
 // Data © OpenStreetMap contributors (ODbL).
 import { mkdir, writeFile } from 'node:fs/promises'
 

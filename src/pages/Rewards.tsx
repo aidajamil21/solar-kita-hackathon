@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, Bike, CalendarCheck, ChevronRight, Clock, Copy, Footprints, Gift, History, Lock, PiggyBank, Star, Sun, TrendingUp, type LucideIcon, PlugZap, BatteryCharging } from 'lucide-react'
+import { ArrowRight, Bike, CalendarCheck, Coins, ChevronRight, Clock, Copy, Footprints, Gift, History, Lock, PiggyBank, Star, Sun, TrendingUp, type LucideIcon, PlugZap, BatteryCharging } from 'lucide-react'
 import { createElement, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { VoucherArt } from '../components/Art'
@@ -54,6 +54,7 @@ export default function Rewards() {
                 <span style={{ fontWeight: 600, color: 'var(--ink-2)' }}>points</span>
               </div>
             </div>
+            <button className="btn ghost sm earn-jump" onClick={() => document.getElementById('earn')?.scrollIntoView({ behavior: 'smooth' })}><Coins size={14} /> Earn more</button>
             <button className="btn ghost sm" onClick={() => setHistOpen(true)}><History size={14} /> History</button>
           </div>
           {lvl.next && (
@@ -83,7 +84,7 @@ export default function Rewards() {
 
       {/* ---- featured ---- */}
       <Rise className="section" style={{ marginTop: 16 }}>
-        <div className="card" style={{ overflow: 'hidden', height: 182, border: 0 }}>
+        <div className="card reward-banner" style={{ overflow: 'hidden', height: 182, border: 0 }}>
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.div
               key={b.id}
@@ -121,7 +122,7 @@ export default function Rewards() {
           <h2 className="h2">Rewards catalogue</h2>
           <span className="muted small">{list.length} rewards</span>
         </div>
-        <motion.div layout className="grid-2">
+        <motion.div layout className="grid-2 reward-grid">
           <AnimatePresence mode="popLayout">
             {list.map((r) => {
               const can = store.points >= r.cost
@@ -158,9 +159,10 @@ export default function Rewards() {
       </Rise>
 
       {/* ---- earn more ---- */}
-      <Rise className="band">
+      <Rise className="band" id="earn">
         <h2 className="h2">How to earn more points</h2>
         <div className="band-sub">Take part in clean energy initiatives across your township.</div>
+        <div className="earn-top">
         <motion.button whileTap={{ scale: 0.98 }} className="card row" style={{ padding: 14, textAlign: 'left', width: '100%', marginTop: 16, gap: 12 }} onClick={() => nav('/green')}>
           <span className="ic green"><Footprints size={20} /></span>
           <div className="grow">
@@ -188,7 +190,8 @@ export default function Rewards() {
           </div>
           <ChevronRight size={16} className="muted" />
         </motion.button>
-        <div className="grid-2" style={{ marginTop: 10 }}>
+        </div>
+        <div className="grid-2 earn-ways" style={{ marginTop: 10 }}>
           {EARN_WAYS.map((w) => (
             <motion.button key={w.id} whileTap={{ scale: 0.97 }} className="card" style={{ padding: 14, textAlign: 'left' }} onClick={() => (w.to ? nav(w.to) : null)}>
               <div className="row between">

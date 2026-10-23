@@ -4,7 +4,7 @@ import { createElement, useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiError, backendApi, type PlanSummary } from '../api/backend'
 import { asset } from '../asset'
 import { Coin, Hero, Page, Progress, Rise, Sheet, SuccessMark } from '../components/ui'
-import { KINDS, MONTHS, rm, SITES, townshipById } from '../data'
+import { KINDS, MONTHS, rm, siteMeta, SITES, townshipById } from '../data'
 import { PLAN, pointsFor, projection, totalBack } from '../plan'
 import { useStore } from '../store'
 import { Info } from '../components/Info'
@@ -282,7 +282,7 @@ function Setup({ farms, town, onStart }: { farms: typeof SITES; town: string; on
               {farms.map((f) => (
                 <button key={f.id} className={`plan-farm${farmId === f.id ? ' on' : ''}`} onClick={() => setFarmId(f.id)}>
                   <span className="ic sm">{createElement(KINDS[f.kind].icon, { size: 15 })}</span>
-                  <span className="grow" style={{ textAlign: 'left' }}><b>{f.name}</b><br /><span className="muted" style={{ fontSize: 11.5 }}>{KINDS[f.kind].label} · {f.capacityMW} MW</span></span>
+                  <span className="grow" style={{ textAlign: 'left' }}><b>{f.name}</b><br /><span className="muted" style={{ fontSize: 11.5 }}>{siteMeta(f).label} · {f.capacityMW} MW</span></span>
                   {farmId === f.id && <Check size={17} color="var(--brand)" />}
                 </button>
               ))}

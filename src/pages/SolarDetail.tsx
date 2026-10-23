@@ -5,7 +5,7 @@ import { ProjectArt } from '../components/Art'
 import { AreaChart } from '../components/Charts'
 import { Coin, Page, Progress, Rise, Seg, Sheet, useFromAlert } from '../components/ui'
 import { openAlerts } from '../components/AlertsButton'
-import { KINDS, MONTHS, rm, siteById, townshipById, unitGridCols, unitLabel } from '../data'
+import { MONTHS, rm, roofOf, siteById, siteMeta, townshipById, unitGridCols, unitLabel } from '../data'
 import { capitalReturned, creditAhead, interestReceived, investedOf, nextPayoutDate, payoutHistory, useStore } from '../store'
 
 type Range = '6M' | '1Y' | '3Y' | 'All'
@@ -48,7 +48,7 @@ export default function SolarDetail() {
     )
   }
 
-  const meta = KINDS[site.kind]
+  const meta = siteMeta(site)
   const township = townshipById(site.townshipId)
   const invested = investedOf(sub)
   const earned = interestReceived(sub)
@@ -74,7 +74,7 @@ export default function SolarDetail() {
       <Rise>
         <div className="card raised" style={{ overflow: 'hidden' }}>
           <div className="cushion" style={{ height: 180, position: 'relative', margin: '10px 10px 0' }}>
-            <ProjectArt kind={site.kind} hero />
+            <ProjectArt kind={site.kind} on={roofOf(site)} hero />
             <span className="pill glass" style={{ position: 'absolute', left: 14, top: 14 }}>{createElement(meta.icon, { size: 12 })} {meta.short}</span>
           </div>
           <div className="pad">

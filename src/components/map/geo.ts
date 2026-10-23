@@ -7,7 +7,8 @@ export const GS = 1 / 12
 /** half-size of the fetched area in scene units */
 export const GEO_HALF = 1100 * GS
 
-export interface GeoSite { x: number; z: number; houses?: number[] }
+/** `houses`: real homes for the rooftop initiative; `roofs`: flat roofs carrying a farm site's panels (crowded townships) */
+export interface GeoSite { x: number; z: number; houses?: number[]; roofs?: number[] }
 export interface GeoData {
   buildings: { p: number[]; h: number; k: string }[]
   roads: { p: number[]; w: number }[]
@@ -185,4 +186,27 @@ export function polylineSampler(p: [number, number][]) {
       return out
     },
   }
+}
+
+/* ---------- shared PV panel texture ---------- */
+let pvTex: THREE.CanvasTexture | null = null
+export function pvTexture() {
+  if (pvTex) return pvTex
+  const c = document.createElement('canvas')
+  c.width = 128; c.height = 64
+  const g = c.getContext('2d')!
+  const grd = g.createLinearGradient(0, 0, 128, 64)
+  grd.addColorStop(0, '#22385F'); grd.addColorStop(0.5, '#1A2D4E'); grd.addColorStop(1, '#2A4370')
+  g.fillStyle = grd
+  g.fillRect(0, 0, 128, 64)
+  g.strokeStyle = 'rgba(190,210,240,.45)'
+  g.lineWidth = 1
+  for (let x = 0; x <= 128; x += 16) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, 64); g.stroke() }
+  for (let y = 0; y <= 64; y += 16) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(128, y + 0.5); g.stroke() }
+  g.strokeStyle = '#D9DEE4'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, 125, 61)
+  pvTex = new THREE.CanvasTexture(c)
+  pvTex.wrapS = pvTex.wrapT = THREE.RepeatWrapping
+  pvTex.colorSpace = THREE.SRGBColorSpace
+  pvTex.anisotropy = 8
+  return pvTex
 }

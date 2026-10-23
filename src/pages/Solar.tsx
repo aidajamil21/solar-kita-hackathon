@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ProjectArt } from '../components/Art'
 import { AreaChart } from '../components/Charts'
 import { Count, Hero, Page, Progress, Rise } from '../components/ui'
-import { KINDS, MONTHS, rm, siteById, townshipById } from '../data'
+import { MONTHS, rm, roofOf, siteById, siteMeta, townshipById } from '../data'
 import { combinedPayouts, interestReceived, investedOf, nextPayoutDate, useStore } from '../store'
 import { asset } from '../asset'
 import { Info } from '../components/Info'
@@ -91,12 +91,12 @@ export default function Solar() {
         <div className="col" style={{ gap: 12 }}>
           {store.subs.map((s, i) => {
             const site = siteById(s.siteId)!
-            const meta = KINDS[site.kind]
+            const meta = siteMeta(site)
             return (
               <motion.div key={s.siteId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 + i * 0.06 }}>
                 <Link to={`/solar/${site.id}`} className="card tap" style={{ overflow: 'hidden' }}>
                   <div style={{ height: 110, position: 'relative' }}>
-                    <ProjectArt kind={site.kind} hero />
+                    <ProjectArt kind={site.kind} on={roofOf(site)} hero />
                     <span className="pill glass" style={{ position: 'absolute', left: 12, top: 12 }}>{createElement(meta.icon, { size: 12 })} {meta.label}</span>
                     <span className="pill green" style={{ position: 'absolute', right: 12, top: 12 }}><span className="live-dot" style={{ width: 6, height: 6 }} /> Active</span>
                   </div>

@@ -1,15 +1,34 @@
 import { motion } from 'framer-motion'
-import { useId, useRef, useState } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 
 export interface Point { label: string; value: number; tip?: string }
 
-const W = 320
+/** fallback drawing width before the chart has been measured */
+const W0 = 320
 
 /** keep the tooltip inside the chart near its edges */
 const tipX = (pct: number) => ({ left: `${pct}%`, transform: `translate(-${Math.min(92, Math.max(8, pct))}%, -112%)` })
 
-function usePointer(n: number, padL: number, innerW: number) {
+/** draw at the container's real pixel width, so text and strokes keep their size on wide screens */
+function useWidth() {
   const ref = useRef<HTMLDivElement>(null)
+  const [w, setW] = useState(W0)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const measure = () => { if (el.clientWidth) setW(el.clientWidth) }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return { ref, W: w }
+}
+
+/** wide charts get a little taller so the line doesn't flatten out */
+const tall = (height: number, W: number) => (W > 560 ? Math.round(height * 1.5) : height)
+
+function usePointer(ref: React.RefObject<HTMLDivElement | null>, W: number, n: number, padL: number, innerW: number) {
   const [i, setI] = useState<number | null>(null)
   const move = (clientX: number) => {
     const box = ref.current!.getBoundingClientRect()
@@ -18,7 +37,7 @@ function usePointer(n: number, padL: number, innerW: number) {
     setI(Math.max(0, Math.min(n - 1, Math.round(x / step))))
   }
   return {
-    ref, i, setI,
+    i, setI,
     handlers: {
       onPointerMove: (e: React.PointerEvent) => move(e.clientX),
       onPointerDown: (e: React.PointerEvent) => move(e.clientX),
@@ -40,8 +59,10 @@ function Empty({ height }: { height: number }) {
   )
 }
 
-function AreaInner({ data, height = 150, format }: { data: Point[]; height?: number; format: (v: number) => string }) {
+function AreaInner({ data, height: h0 = 150, format }: { data: Point[]; height?: number; format: (v: number) => string }) {
   const gid = useId()
+  const { ref, W } = useWidth()
+  const height = tall(h0, W)
   const padL = 4, padR = 4, padT = 14, padB = 22
   const innerW = W - padL - padR
   const innerH = height - padT - padB
@@ -53,9 +74,9 @@ function AreaInner({ data, height = 150, format }: { data: Point[]; height?: num
   const y = (v: number) => padT + innerH - ((v - min) / (max - min)) * innerH
   const line = data.map((d, k) => `${k ? 'L' : 'M'}${x(k).toFixed(1)},${y(d.value).toFixed(1)}`).join('')
   const area = `${line}L${x(data.length - 1)},${padT + innerH}L${x(0)},${padT + innerH}Z`
-  const { ref, i, handlers } = usePointer(data.length, padL, innerW)
+  const { i, handlers } = usePointer(ref, W, data.length, padL, innerW)
   const active = i ?? data.length - 1
-  const labelEvery = Math.ceil(data.length / 6)
+  const labelEvery = Math.ceil(data.length / Math.max(6, Math.floor(W / 70)))
 
   return (
     <div className="chart" ref={ref} {...handlers}>
@@ -75,7 +96,7 @@ function AreaInner({ data, height = 150, format }: { data: Point[]; height?: num
           d={line} fill="none" stroke="#FF3100" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
           initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, ease: 'easeInOut' }}
         />
-        {data.map((d, k) => (k % labelEvery === 0 || k === data.length - 1) && (
+        {data.map((d, k) => (k === data.length - 1 || (k % labelEvery === 0 && data.length - 1 - k >= Math.max(1, labelEvery * 0.6))) && (
           <text key={k} className="axis" x={x(k)} y={height - 4} textAnchor={k === 0 ? 'start' : k === data.length - 1 ? 'end' : 'middle'}>{d.label}</text>
         ))}
         <line x1={x(active)} x2={x(active)} y1={padT} y2={padT + innerH} stroke="#1C2B29" strokeOpacity={i === null ? 0 : 0.25} strokeDasharray="3 3" />
@@ -94,13 +115,15 @@ export function BarChart(props: { data: Point[]; height?: number; format: (v: nu
   return props.data.length ? <BarInner {...props} /> : <Empty height={props.height ?? 140} />
 }
 
-function BarInner({ data, height = 140, format, color = '#FF6E00' }: { data: Point[]; height?: number; format: (v: number) => string; color?: string }) {
+function BarInner({ data, height: h0 = 140, format, color = '#FF6E00' }: { data: Point[]; height?: number; format: (v: number) => string; color?: string }) {
+  const { ref, W } = useWidth()
+  const height = tall(h0, W)
   const padT = 10, padB = 20
   const innerH = height - padT - padB
   const max = Math.max(...data.map((d) => d.value)) * 1.1 || 1
   const slot = W / data.length
-  const bw = Math.min(26, slot - 6)
-  const { ref, i, handlers } = usePointer(data.length, slot / 2, W - slot)
+  const bw = Math.min(Math.max(26, slot * 0.4), 56, slot - 6)
+  const { i, handlers } = usePointer(ref, W, data.length, slot / 2, W - slot)
   const active = i ?? data.length - 1
 
   return (
