@@ -28,8 +28,11 @@ router.get('/health', h(async (_req, res) => {
 router.get('/catalogue', h(async (req, res) => res.json(await catalogue(req.userId))))
 router.get('/me', h(async (req, res) => {
   await syncPlan(req.userId).catch((err) => console.error('plan sync failed', err))
-  await syncBlockCredits(req.userId).catch((err) => console.error('credit sync failed', err))
-  await syncGenerationPoints(req.userId).catch((err) => console.error('generation points sync failed', err))
+  // independent of each other: credits write payouts, generation writes the points ledger
+  await Promise.all([
+    syncBlockCredits(req.userId).catch((err) => console.error('credit sync failed', err)),
+    syncGenerationPoints(req.userId).catch((err) => console.error('generation points sync failed', err)),
+  ])
   res.json(await me(req.userId))
 }))
 router.patch('/me', h(async (req, res) => res.json(await updateMe(req.userId, req.body))))
