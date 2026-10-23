@@ -7,7 +7,7 @@
 A connected community solar ecosystem for Sime Darby Property townships.
 *Explore. Participate. Grow together.*
 
-[**Live Demo**](https://solar-kita.vercel.app/) · [**Video Demo**](https://drive.google.com/file/d/1wIqlDyF7QM41DNH_ckownFQMKde6QUdL/view)
+[**Live Demo**](https://solar-kita.vercel.app/) · [**Video Demo**](https://youtu.be/LDi2BhXUeag)
 
 The live demo is hosted on Vercel and works on both **web and mobile** browsers.
 
