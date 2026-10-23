@@ -17,6 +17,8 @@ const r1 = (n) => Math.round(n * 10) / 10
 const FARM = { subscription: 7.9 * 1.9 * 12 + 20, investment: 7.9 * 2.3 * 12 + 20 }
 const EV = 7.9 * 0.75 * 12 + 10
 const ROOFTOP = 7.9 * 12 + 10
+/** sites stay within this distance of the township centre (metres), so the 3D map's home view can frame them all */
+const REACH = 650
 /** a farm needs this much open ground: no more than this many buildings within 250 m of its centre */
 const MAX_NEIGHBOURS = 60
 
@@ -39,7 +41,7 @@ function rectOf(p) {
     const ang = Math.atan2(bz - az, bx - ax), c = Math.cos(ang), s = Math.sin(ang)
     let a = Infinity, b = -Infinity, e = Infinity, f = -Infinity
     for (const [x, z] of p) { const u = x * c + z * s, v = -x * s + z * c; a = Math.min(a, u); b = Math.max(b, u); e = Math.min(e, v); f = Math.max(f, v) }
-    if ((b - a) * (f - e) < best.area) best = { area: (b - a) * (f - e), w: b - a, d: f - e }
+    if ((b - a) * (f - e) < best.area) best = { area: (b - a) * (f - e), w: b - a, d: f - e, u: (a + b) / 2, v: (e + f) / 2, c, s }
   }
   return best
 }
@@ -101,7 +103,7 @@ function placeSites(g, prev) {
   const placed = []
   const spread = (x, z) => placed.reduce((m, [ax, az]) => Math.min(m, Math.hypot(ax - x, az - z)), 1e9)
 
-  const findSquare = (grid, size, { maxR = R * 0.8, crowd = Infinity } = {}) => {
+  const findSquare = (grid, size, { maxR = REACH, crowd = Infinity } = {}) => {
     const n = Math.ceil(size / C), used = grid.sat()
     let best = null
     for (let k = 0; k + n <= N; k += 1) for (let i = 0; i + n <= N; i += 1) {
@@ -124,12 +126,37 @@ function placeSites(g, prev) {
     return best && { x: r1(best.x), z: r1(best.z) }
   }
 
+  // buildings by bounding box, to find what overlaps a spot quickly
+  const boxed = buildings.map((b) => {
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity
+    for (const [x, z] of b.p) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z) }
+    return { b, x0, x1, z0, z1 }
+  })
+  const buildingAt = (x, z, skip) => boxed.find((o) => o.b !== skip && x >= o.x0 && x <= o.x1 && z >= o.z0 && z <= o.z1 && inPoly(x, z, o.b.p))
+  /** the whole panel area (as drawn by RoofArrays in Sites.tsx) sits on this roof, with no other building over it */
+  const panelsFit = (b) => {
+    const r = rectOf(b.p)
+    for (let i = -1; i <= 1; i += 0.125) for (let j = -1; j <= 1; j += 0.125) {
+      const u = r.u + i * r.w * 0.47, v = r.v + j * r.d * 0.46
+      const x = u * r.c - v * r.s, z = u * r.s + v * r.c
+      if (!inPoly(x, z, b.p) || buildingAt(x, z, b)) return false
+    }
+    return true
+  }
+  /** no building inside a ground site's square footprint */
+  const groundClear = (x, z, size) => {
+    const h = size / 2
+    if (boxed.some((o) => o.x1 > x - h && o.x0 < x + h && o.z1 > z - h && o.z0 < z + h && o.b.p.some(([px, pz]) => Math.abs(px - x) < h && Math.abs(pz - z) < h))) return false
+    for (let i = -1; i <= 1; i += 0.25) for (let j = -1; j <= 1; j += 0.25) if (buildingAt(x + i * h, z + j * h)) return false
+    return true
+  }
+
   // flat roofs big enough for an array (not the pitched houses GeoTown draws with gables)
   const taken = new Set()
   const roofs = buildings.filter((b) => {
     const rc = rectOf(b.p)
     const pitched = (b.k === 'h' || b.k === 'y') && b.a < 700 && (!b.h || b.h <= 12)
-    return !pitched && b.a >= 400 && b.a / rc.area > 0.6 && Math.min(rc.w, rc.d) >= 10 && Math.hypot(...b.c) < R * 0.85
+    return !pitched && b.a >= 400 && b.a / rc.area > 0.6 && Math.min(rc.w, rc.d) >= 10 && Math.hypot(...b.c) < REACH && panelsFit(b)
   })
   const pickRoofs = (count, condosOnly) => {
     const free = roofs.filter((b) => !taken.has(b.i) && (!condosOnly || b.k === 'a'))
@@ -152,16 +179,16 @@ function placeSites(g, prev) {
 
   // EV hub: a real car park, else the nearest open spot
   const lots = g.parking.filter((p) => closed(p.p)).map((p) => ({ p: ptsOf(p.p) })).map((l) => ({ ...l, c: centroid(l.p), a: area(l.p) }))
-    .filter((l) => l.a > 900 && Math.hypot(...l.c) < R * 0.8).sort((a, b) => Math.hypot(...a.c) - Math.hypot(...b.c))
-  const lot = lots.find((l) => buildings.every((b) => Math.hypot(b.c[0] - l.c[0], b.c[1] - l.c[1]) > EV / 2 || !inPoly(l.c[0], l.c[1], b.p)))
-  sites.ev = lot ? { x: r1(lot.c[0]), z: r1(lot.c[1]) } : findSquare(hard, EV, { maxR: R * 0.6 })
+    .filter((l) => l.a > 900 && Math.hypot(...l.c) < REACH).sort((a, b) => Math.hypot(...a.c) - Math.hypot(...b.c))
+  const lot = lots.find((l) => groundClear(l.c[0], l.c[1], EV))
+  sites.ev = lot ? { x: r1(lot.c[0]), z: r1(lot.c[1]) } : findSquare(hard, EV, { maxR: REACH * 0.8 })
   if (sites.ev) { placed.push([sites.ev.x, sites.ev.z]); hard.block(sites.ev.x, sites.ev.z, EV); soft.block(sites.ev.x, sites.ev.z, EV) }
 
   for (const kind of ['subscription', 'investment']) {
     const ground = findSquare(soft, FARM[kind], { crowd: MAX_NEIGHBOURS })
     // no open land: condo roofs, else other flat roofs, else the most open spot there is
     const n = kind === 'investment' ? 6 : 4
-    const s = ground ?? pickRoofs(n, true) ?? pickRoofs(n, false) ?? findSquare(hard, FARM[kind] * 0.75)
+    const s = ground ?? pickRoofs(n, true) ?? pickRoofs(n, false) ?? findSquare(hard, FARM[kind] * 0.75) ?? findSquare(hard, FARM[kind] * 0.75, { maxR: R * 0.8 })
     if (!s) continue
     sites[kind] = s
     placed.push([s.x, s.z])
@@ -170,7 +197,7 @@ function placeSites(g, prev) {
 
   // townships without suitable houses: a generated rooftop cluster on open ground
   if (!sites.rooftop) {
-    const s = findSquare(hard, ROOFTOP, { maxR: R * 0.6 })
+    const s = findSquare(hard, ROOFTOP, { maxR: REACH * 0.8 })
     if (s) sites.rooftop = s
   }
   return sites

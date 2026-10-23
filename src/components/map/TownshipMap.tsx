@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import type { Site, SiteKind, Township } from '../../data'
 import { blockCenter, buildLayout, HALF } from './gen'
-import { GEO_HALF, loadGeo, type GeoData } from './geo'
+import { GEO_HALF, GS, loadGeo, type GeoData, type GeoSite } from './geo'
 import GeoTown from './GeoTown'
 import { Atmosphere, Boxes, Cars, Ground, Houses, Lake, Park, StreetLights, Towers, Trees, env } from './Scenery'
 import { EnergyFlow, Pin, PinProjector, SiteNode, type UnitState } from './Sites'
@@ -35,8 +35,11 @@ interface Props {
   api: RefObject<MapApi | null>
 }
 
-/** camera framing per world type: real townships are ~2.2 km across, the generated one ~0.9 */
-interface Frame { k: number; half: number }
+/**
+ * camera framing per world type: real townships are ~2.2 km across, the generated one ~0.9.
+ * Real townships also carry the middle (cx, cz) and half-size (reach) of their sites, so the home view frames them all.
+ */
+interface Frame { k: number; half: number; cx?: number; cz?: number; reach?: number }
 const MODEL: Frame = { k: 1, half: HALF }
 const REAL: Frame = { k: 1.45, half: GEO_HALF * 0.8 }
 
@@ -54,9 +57,12 @@ function Rig({ api, onInteract, frame, anchors, frameKey }: { api: RefObject<Map
   const homeDist = useMemo(() => {
     const aspect = size.width / size.height
     const halfH = Math.atan(Math.tan(THREE.MathUtils.degToRad(19)) * Math.min(aspect, 1.4))
-    // fit most of the town across the screen width
-    return THREE.MathUtils.clamp(24 / Math.tan(halfH), 58, 160) * k
-  }, [size, k])
+    // fit most of the town across the screen width, and every site
+    // 2: room for the controls on top and the site cards along the bottom
+    const span = Math.max(24, ((frame.reach ?? 0) * 2) / k)
+    return THREE.MathUtils.clamp(span / Math.tan(halfH), 58, 160) * k
+  }, [size, k, frame.reach])
+  const home = useMemo(() => new THREE.Vector3(frame.cx ?? 4 * k, 0, frame.cz ?? 4 * k), [frame.cx, frame.cz, k])
 
   useEffect(() => {
     if (!controls) return
@@ -80,7 +86,7 @@ function Rig({ api, onInteract, frame, anchors, frameKey }: { api: RefObject<Map
         const d = THREE.MathUtils.clamp(dir.length() * f, 10, 170 * k)
         goal.current = { t: controls.target.clone(), p: controls.target.clone().add(dir.setLength(d)) }
       },
-      reset: () => fly(new THREE.Vector3(4 * k, 0, 4 * k), homeDist, POLAR, az),
+      reset: () => fly(home, homeDist, POLAR, az),
       focus: (site) => {
         const a = anchors.get(site.id)
         const c = a ? a.getWorldPosition(new THREE.Vector3()).setY(0) : new THREE.Vector3(blockCenter(site.block[0]), 0, blockCenter(site.block[1]))
@@ -93,9 +99,9 @@ function Rig({ api, onInteract, frame, anchors, frameKey }: { api: RefObject<Map
     if (intro.current !== frameKey) {
       intro.current = frameKey
       camera.position.set(70 * k, 80 * k, 70 * k)
-      fly(new THREE.Vector3(4 * k, 0, 4 * k), homeDist, POLAR, az)
+      fly(home, homeDist, POLAR, az)
     }
-  }, [api, camera, controls, homeDist, k, anchors, frameKey])
+  }, [api, camera, controls, homeDist, home, k, anchors, frameKey])
 
   useFrame((_, dt) => {
     if (!controls) return
@@ -214,7 +220,18 @@ export default function TownshipMap(props: Props) {
   }, [props.township.id, onLoading])
   const ready = geo?.id === props.township.id
   const real = ready && !!geo!.data
-  const frame = real ? REAL : MODEL
+  const geoData = real ? geo!.data : null
+  const frame = useMemo<Frame>(() => {
+    if (!geoData) return MODEL
+    const pts = props.sites.map((s) => geoData.sites[s.kind]).filter((g): g is GeoSite => !!g).map((g) => [g.x * GS, g.z * GS] as const)
+    if (!pts.length) return REAL
+    const xs = pts.map((p) => p[0]), zs = pts.map((p) => p[1])
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2
+    const reach = Math.max(...pts.map(([x, z]) => Math.max(Math.abs(x - cx), Math.abs(z - cz)))) + 6
+    // panning must reach the furthest site
+    const half = Math.max(REAL.half, ...pts.map(([x, z]) => Math.hypot(x, z) + 8))
+    return { ...REAL, cx, cz, reach, half }
+  }, [geoData, props.sites])
 
   return (
     <>

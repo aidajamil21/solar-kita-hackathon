@@ -1,23 +1,34 @@
 {
+  "ainsdale": {
+    "subscription": "roof"
+  },
   "ara": {
     "subscription": "condo",
+    "investment": "condo"
+  },
+  "bukit-jelutong": {
     "investment": "condo"
   },
   "bukit-raja": {
     "investment": "roof"
   },
   "denai-alam": {
-    "subscription": "condo",
-    "investment": "condo"
+    "subscription": "roof",
+    "investment": "roof"
   },
   "klgcc": {
-    "investment": "condo"
+    "subscription": "roof",
+    "investment": "roof"
   },
   "melawati": {
     "subscription": "condo",
-    "investment": "condo"
+    "investment": "roof"
   },
   "nilai-impian": {
+    "subscription": "condo",
+    "investment": "condo"
+  },
+  "pagoh": {
     "investment": "condo"
   },
   "putra-heights": {
@@ -26,10 +37,14 @@
   },
   "saujana-impian": {
     "subscription": "condo",
-    "investment": "condo"
+    "investment": "roof"
+  },
+  "serenia": {
+    "subscription": "condo",
+    "investment": "roof"
   },
   "subang-jaya": {
     "subscription": "condo",
-    "investment": "condo"
+    "investment": "roof"
   }
 }
