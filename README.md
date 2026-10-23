@@ -97,7 +97,7 @@ Maxis Business Enterprise interns with backgrounds in AI, sustainability and net
 
 | Name | University |
 |---|---|
-| Aida | Universiti Kebangsaan Malaysia |
+| Nurul Aida binti Jamil | Universiti Kebangsaan Malaysia |
 | Tan Guan Zhe | Universiti Malaya |
 | Kashton Liu | Tsinghua University |
 | Tan Jian Ming | Universiti Teknologi Malaysia |
