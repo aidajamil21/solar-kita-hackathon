@@ -21,7 +21,7 @@ Built by **MAXCORN** (Maxis Business Enterprise interns)
 
 Solar Kita is a mobile-first web app that lets residents of Sime Darby Property townships take part in community solar, whether they own a rooftop or not. Residents explore an interactive 3D map of their township, choose a small share of a professionally managed solar project, earn rewards, and track the energy and environmental impact of their participation. An AI **Solar Analyst** explains their portfolio in plain language.
 
-> **Prototype status:** the frontend is complete and runs on local demo data. The backend is not built yet (see [Backend integration](#backend-integration)). Prices, availability, points and generation figures are illustrative, not live offers.
+> **Prototype status:** the app runs against a Supabase-backed API (resident sign-in, subscriptions, rewards, AI analyst) seeded with demo residents, and falls back to built-in demo data when no API is configured (see [Backend](#backend)). Prices, availability, points and generation figures are illustrative, not live offers.
 
 ## The problem
 
@@ -50,6 +50,9 @@ Smaller participation units → Broader community involvement
 | **Select and participate** | Choose exact panels, roof sections, charger bays or subscriptions |
 | **Track performance** | View generation, benefits and environmental impact |
 | **Earn rewards** | Collect points and achievements, redeem in a rewards marketplace |
+| **Go Green** | Walk or cycle in the township to earn points |
+| **EV charging** | Book solar-powered EV charger bays |
+| **Solar Builder Plan** | Contribute monthly toward solar units instead of paying upfront |
 | **Understand with AI** | Ask the Solar Analyst about projects and their portfolio |
 | **Build a solar culture** | Community recognition that sustains engagement beyond price |
 
@@ -124,60 +127,48 @@ npm run build      # production build in dist/
 | `/solar`, `/solar/:siteId` | Projects: subscriptions, payouts, performance, documents |
 | `/rewards` | Rewards marketplace: catalogue, redeem flow, points history |
 | `/me` | Progress and impact: impact stats, level journey, achievements, settings |
-| `/assistant` | Solar Analyst AI chat (UI only, see below) |
+| `/assistant` | Solar Analyst AI chat |
+| `/green` | Go Green: walk or cycle to earn points |
+| `/charge` | EV charger bay booking |
+| `/plan` | Solar Builder Plan: monthly contributions |
 
 ## Project structure
 
 ```
-src/
-  api/types.ts           Data contract for the backend (start here)
-  data.ts                Demo content: townships, solar sites, rewards, levels, badges
-  store.tsx              Client state (points, subscriptions, redemptions), saved to localStorage
+src/                     Frontend (React + TypeScript)
+  api/                   Backend client (backend.ts) and data contract (types.ts)
+  data.ts                Built-in demo content: townships, solar sites, rewards, levels, badges
+  store.tsx              Client state (points, subscriptions, redemptions)
   pages/                 One file per screen
-  components/
-    chat/                AI chat cards and static sample conversation/alerts
-    map/                 3D township (GeoTown = real OSM layout, Town = generated fallback)
-    AlertsButton.tsx     Notifications bell and sheet
-    ui.tsx, Art.tsx, Charts.tsx
+  components/            Shared UI; chat/ (AI cards), map/ (3D township), charts
+  roof-sites.json        Sites that sit on roofs, written by place-sites.mjs
+server/                  Backend API (Express + Supabase), see server/README.md
+  src/                   Routes, services, AI analyst, auth
+  schema.txt, seed.sql   Database schema and demo data (run in the Supabase SQL Editor)
+api/index.js             Vercel serverless entry that mounts the backend
 public/
-  geo/*.json             Pre-downloaded OpenStreetMap data per township
-  previews/*.jpg         3D map snapshots used as thumbnails
-  photos/                Township photos (<township-id>.jpg)
-scripts/fetch-geo.mjs    Regenerates public/geo from OpenStreetMap
-scripts/place-sites.mjs  Picks where each solar site sits on the map (run after fetch-geo)
-src/roof-sites.json      Sites that sit on roofs, written by place-sites.mjs
+  geo/                   Pre-downloaded OpenStreetMap data per township
+  photos/
+    townships/           Township photography (named by township id)
+    solar/               Solar project photography (farm, rooftop, condo, EV charger)
+    rewards/             Rewards marketplace photography
+    map-previews/        3D map snapshots used as thumbnails
+  brand/                 Sime Darby Property logo
+scripts/
+  fetch-geo.mjs          Regenerates public/geo from OpenStreetMap
+  place-sites.mjs        Picks where each solar site sits on the map (run after fetch-geo)
 ```
 
-## Backend integration
+## Backend
 
-The frontend uses **local demo data** in two places:
+The app talks to a backend in [`server/`](server/README.md): an Express API on Supabase Postgres that handles resident sign-in, subscriptions, points and rewards, Go Green trips, EV bookings, the Solar Builder Plan, alerts, and the **Solar Analyst** AI (Groq, with a rule-based fallback). It is deployed to Vercel together with the frontend through `api/index.js`.
 
-1. **App data** (townships, sites, subscriptions, points, rewards): `src/data.ts` and `src/store.tsx`.
-2. **AI chat and alerts**: static samples in `src/components/chat/sample.ts`.
+- **Without a backend:** leave `VITE_API_URL` empty and the app runs on the built-in demo data in `src/data.ts`, with no login.
+- **With a backend:** set `VITE_API_URL` in `.env.local` (see `.env.example`), configure `server/.env`, and run `cd server && npm install && npm run dev`.
+- **Data contract:** the response shapes are defined in `src/api/types.ts`. Every data response carries `DataMeta` (`basis: 'verified' | 'forecast'`, `asOf`, `source`), which the UI uses to label each card *Verified data* or *Forecast*.
+- **CORS:** the backend allows the Vercel domain, `https://solarkita123.github.io`, and `http://localhost:5173` for development.
 
-The backend should implement the shapes in **`src/api/types.ts`**. Each maps to an approved AI tool:
-
-| Tool / endpoint | Type | Returns |
-|---|---|---|
-| `get_portfolio_summary` | `PortfolioSummary` | Contributions, payouts received, outstanding, holdings |
-| `calculate_realized_return` | `RealizedReturn` | Verified cash flows and realized return |
-| `calculate_projected_scenarios(amount, years)` | `ScenarioSet` | Conservative/base/optimistic projections, assumptions and risks |
-| `get_project_performance(project_id)` | `ProjectPerformance` | Generation vs forecast, availability, revenue, costs |
-| `get_environmental_impact` | `EnvironmentalImpact` | Attributable kWh and tCO₂e avoided, with method |
-| `get_active_alerts` | `Alert[]` | 8 alert types (payout, low generation, outage, milestones…) |
-| chat | `ChatMessage`, `ChatEvent` | Assistant replies; stream `tool` → `delta` → `done` events |
-
-Every data response carries `DataMeta` (`basis: 'verified' | 'forecast'`, `asOf`, `source`). The UI uses it to label each card *Verified data* or *Forecast*.
-
-**Where to plug the API in:**
-
-- `src/pages/Assistant.tsx`: replace `send()` with a call to the chat endpoint (stream `ChatEvent`s).
-- `src/components/AlertsButton.tsx`: load alerts from `get_active_alerts` and call a mark-read endpoint.
-- Set the API base URL in `.env.local` as `VITE_API_URL=` (see `.env.example`) and read it with `import.meta.env.VITE_API_URL`.
-
-**CORS:** the backend must allow `https://solarkita123.github.io`, the Vercel domain, and `http://localhost:5173` for development.
-
-**Suggested open-source pieces:** OpenEMS for energy/inverter data, Novu for notifications.
+Full endpoint list, database setup and environment variables are in [`server/README.md`](server/README.md).
 
 ## Deployment
 
@@ -205,14 +196,18 @@ node scripts/place-sites.mjs [township-id…]  # place the solar sites
 
 `place-sites.mjs` only puts a **ground solar farm** on open land: it keeps clear of buildings, lakes, rivers, forests, parks and residential streets, and rejects land surrounded by housing. Crowded townships have no such land, so their Subscription / Investment sites go on **condo roofs** instead (or other large flat roofs such as malls and schools). These are recorded in `src/roof-sites.json`, and the app shows them as *Condo Solar* / *Rooftop Solar* (`siteMeta()` and `fitToRoofs()` in `src/data.ts`). Only the name, description and capacity change; site ids, prices and units stay the same, so existing subscriptions are unaffected.
 
-After refreshing, re-take the `public/previews/` snapshots so the Home thumbnails match the new site positions.
+After refreshing, re-take the `public/photos/map-previews/` snapshots so the Home thumbnails match the new site positions.
 
 ## Photos
 
-Drop images into `public/photos/` and the app picks them up with no code change:
+Images live in `public/photos/`, grouped by purpose. Drop a file into the right folder and the app picks it up with no code change:
 
-- **Township photos:** named after the township id, e.g. `subang-jaya.jpg` (`.png` / `.webp` and `subang_jaya.jpg` also work). Without one, the township shows its 3D map snapshot. Ids: `subang-jaya`, `putra-heights`, `bukit-jelutong`, `denai-alam`, `saujana-impian`, `melawati`, `klgcc`, `nilai-impian`, `planters-haven`, `ainsdale`, `pagoh`.
-- **Roof solar sites:** `condo_solar.jpg` and `rooftop_solar.jpg`. Until added, these sites use the houses-with-solar photo.
+| Folder | Contents |
+|---|---|
+| `townships/` | One photo per township, named after the township id, e.g. `subang-jaya.jpg` (`.png` / `.webp` and `subang_jaya.jpg` also work). Without one, the township shows its 3D map snapshot. Ids: `subang-jaya`, `putra-heights`, `bukit-jelutong`, `denai-alam`, `saujana-impian`, `melawati`, `klgcc`, `nilai-impian`, `planters-haven`, `ainsdale`, `pagoh` |
+| `solar/` | Project photography. `condo_solar.jpg` and `rooftop_solar.jpg` are used for roof sites; until added they fall back to `houses_with_solar.jpg` |
+| `rewards/` | Rewards marketplace photography |
+| `map-previews/` | 3D map snapshots, one per township |
 
 Keep each image under about 300 KB.
 

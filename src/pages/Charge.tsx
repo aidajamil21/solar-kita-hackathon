@@ -98,7 +98,7 @@ export default function Charge() {
 
   return (
     <Page>
-      <Hero photo={asset('photos/ev_charger.jpg')} eyebrow="Solar EV charging" title="Charge with the" accent="sun"
+      <Hero photo={asset('photos/solar/ev_charger.jpg')} eyebrow="Solar EV charging" title="Charge with the" accent="sun"
         sub={`Book a bay at your township’s solar-powered EV station. One price all day, ${rm(EV.pricePerKwh, 2)} per kWh, and extra points when you charge in the solar peak.`} />
 
       {!store.online && <Rise className="section overlap"><div className="card pad small">EV bookings need the Solar Kita server. Sign in with the server running to book a bay.</div></Rise>}

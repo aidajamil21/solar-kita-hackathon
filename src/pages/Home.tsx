@@ -23,7 +23,7 @@ export default function Home() {
 
   return (
     <Page>
-      <Hero photo={asset('photos/solar_farm_golden_hour_2.jpg')} eyebrow="Sustainable townships. Brighter tomorrows." title="Choose your solar" accent="journey" sub="Explore solar initiatives in your township, earn rewards and help build net-zero communities." />
+      <Hero photo={asset('photos/solar/solar_farm_golden_hour_2.jpg')} eyebrow="Sustainable townships. Brighter tomorrows." title="Choose your solar" accent="journey" sub="Explore solar initiatives in your township, earn rewards and help build net-zero communities." />
 
       {/* ---- select your township ---- */}
       <Rise className="section overlap">
@@ -54,7 +54,7 @@ export default function Home() {
         <motion.button whileTap={{ scale: 0.985 }} onClick={() => nav('/explore')} className="card tap" style={{ overflow: 'hidden', padding: 0 }}>
           <div className="map-preview" style={{ height: 230, position: 'relative', background: '#EEF0EC' }}>
             <AnimatePresence mode="popLayout">
-              <motion.img key={township.id} src={asset(`previews/${township.id}.jpg`)} alt={`3D map of ${township.name}`} className="photo"
+              <motion.img key={township.id} src={asset(`photos/map-previews/${township.id}.jpg`)} alt={`3D map of ${township.name}`} className="photo"
                 initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} />
             </AnimatePresence>
             <span className="pill glass" style={{ position: 'absolute', left: 12, top: 12 }}><Map size={12} /> Interactive 3D map</span>

@@ -75,7 +75,7 @@ function methods(): Method[] {
     {
       id: 'plan',
       icon: PiggyBank,
-      photo: asset('photos/solar_farm_golden_hour.jpg'),
+      photo: asset('photos/solar/solar_farm_golden_hour.jpg'),
       name: 'Solar Builder Plan',
       tag: 'Monthly',
       tint: '#F20000',
@@ -98,7 +98,7 @@ function methods(): Method[] {
     {
       id: 'green',
       icon: Footprints,
-      photo: asset('photos/elmina_1.jpg'),
+      photo: asset('photos/townships/elmina_1.jpg'),
       name: 'Go Green: walk or cycle',
       tag: 'Free',
       tint: '#1F8A5B',

@@ -100,10 +100,10 @@ const P = (f: string) => asset(`photos/${f}.jpg`)
 
 /** Sime Darby Property townships. Coordinates are approximate township centres. */
 export const TOWNSHIPS: Township[] = [
-  { id: 'elmina', name: 'City of Elmina', area: 'Shah Alam', state: 'Selangor', lat: 3.1804, lon: 101.5173, photo: P('elmina_3'), lake: [2, 0], park: [1, 1], towers: [[0, 0]], seed: 11, communityMWh: 12.4, residents: 2140 },
-  { id: 'bukit-raja', name: 'Bandar Bukit Raja', area: 'Klang', state: 'Selangor', lat: 3.0852, lon: 101.4377, photo: P('bandar_bukit_raja'), lake: [0, 3], park: [2, 1], towers: [[1, 0], [0, 1]], seed: 23, communityMWh: 9.8, residents: 1710 },
-  { id: 'serenia', name: 'Serenia City', area: 'Sepang', state: 'Selangor', lat: 2.8454, lon: 101.7046, photo: P('serenia_city'), lake: [1, 2], park: [3, 3], towers: [[0, 0]], seed: 37, communityMWh: 15.1, residents: 2680 },
-  { id: 'ara', name: 'Ara Damansara', area: 'Petaling Jaya', state: 'Selangor', lat: 3.1084, lon: 101.5866, photo: P('ara_damansara'), lake: [3, 1], park: [0, 2], towers: [[1, 0], [2, 0]], seed: 51, communityMWh: 7.6, residents: 1290 },
+  { id: 'elmina', name: 'City of Elmina', area: 'Shah Alam', state: 'Selangor', lat: 3.1804, lon: 101.5173, photo: P('townships/elmina_3'), lake: [2, 0], park: [1, 1], towers: [[0, 0]], seed: 11, communityMWh: 12.4, residents: 2140 },
+  { id: 'bukit-raja', name: 'Bandar Bukit Raja', area: 'Klang', state: 'Selangor', lat: 3.0852, lon: 101.4377, photo: P('townships/bandar_bukit_raja'), lake: [0, 3], park: [2, 1], towers: [[1, 0], [0, 1]], seed: 23, communityMWh: 9.8, residents: 1710 },
+  { id: 'serenia', name: 'Serenia City', area: 'Sepang', state: 'Selangor', lat: 2.8454, lon: 101.7046, photo: P('townships/serenia_city'), lake: [1, 2], park: [3, 3], towers: [[0, 0]], seed: 37, communityMWh: 15.1, residents: 2680 },
+  { id: 'ara', name: 'Ara Damansara', area: 'Petaling Jaya', state: 'Selangor', lat: 3.1084, lon: 101.5866, photo: P('townships/ara_damansara'), lake: [3, 1], park: [0, 2], towers: [[1, 0], [2, 0]], seed: 51, communityMWh: 7.6, residents: 1290 },
   ...([
     ['subang-jaya', 'Subang Jaya & USJ', 'Subang Jaya', 'Selangor', 3.0757, 101.5861, 63, 18.2, 3420],
     ['putra-heights', 'Putra Heights', 'Subang Jaya', 'Selangor', 2.9961, 101.5756, 71, 8.9, 1580],
@@ -138,10 +138,10 @@ function mulberry(seed: number) {
 
 /** Photography per initiative type: `hero` for wide banners, `thumb` for small crops. */
 export const KIND_PHOTOS: Record<SiteKind, { hero: string; thumb: string }> = {
-  subscription: { hero: P('solar_farm_golden_hour_2'), thumb: P('solar_farm_golden_hour') },
-  investment: { hero: P('solar_farm_golden_hour'), thumb: P('solar_farm_golden_hour_2') },
-  rooftop: { hero: P('houses_with_solar'), thumb: P('houses_with_solar') },
-  ev: { hero: P('solar_carport_2'), thumb: P('solar_car_park') },
+  subscription: { hero: P('solar/solar_farm_golden_hour_2'), thumb: P('solar/solar_farm_golden_hour') },
+  investment: { hero: P('solar/solar_farm_golden_hour'), thumb: P('solar/solar_farm_golden_hour_2') },
+  rooftop: { hero: P('solar/houses_with_solar'), thumb: P('solar/houses_with_solar') },
+  ev: { hero: P('solar/solar_carport_2'), thumb: P('solar/solar_car_park') },
 }
 
 /**
@@ -391,12 +391,12 @@ export interface Reward {
 
 export const REWARDS: Reward[] = [
   { id: 'sdp50', title: 'Sime Darby Property Shopping Voucher', value: 'RM50', detail: 'Shop, dine and live greener at Sime Darby Property malls and partners.', cost: 1000, cat: 'shopping', icon: Ticket, tint: '#F20000', photo: null },
-  { id: 'ev20', title: 'EV Charging Credits', value: 'RM20', detail: 'Charging credit at any township EV charger.', cost: 800, cat: 'mobility', icon: PlugZap, tint: '#3B6FD8', photo: P('ev_charger') },
-  { id: 'shop50', title: 'Retail Shopping Voucher', value: 'RM50', detail: 'E-voucher for selected retail partners in our townships.', cost: 1200, cat: 'shopping', icon: ShoppingBag, tint: '#E07A2E', photo: P('shopping_bag') },
-  { id: 'appliance', title: 'Green Home Appliance Rebate', value: 'RM100', detail: 'Rebate on selected energy-efficient home appliances.', cost: 2000, cat: 'home', icon: Refrigerator, tint: '#2C8FA8', photo: P('energy_efficient_appliances') },
-  { id: 'park10', title: 'Township Parking Credit', value: 'RM10', detail: 'Parking credit at participating township car parks.', cost: 500, cat: 'mobility', icon: SquareParking, tint: '#6A5BD6', photo: P('solar_car_park') },
-  { id: 'tree', title: 'Tree-Planting Donation', value: '1 tree', detail: 'Plant a native tree in Sime Darby Property townships, tagged in your name.', cost: 1000, cat: 'community', icon: Sprout, tint: '#2F8F6B', photo: P('tree_planting_hands') },
-  { id: 'garden', title: 'Community Garden Plot', value: '3 months', detail: 'Your own plot at the township community garden.', cost: 1500, cat: 'community', icon: Flower2, tint: '#4E9A3F', photo: P('seedling_hands') },
+  { id: 'ev20', title: 'EV Charging Credits', value: 'RM20', detail: 'Charging credit at any township EV charger.', cost: 800, cat: 'mobility', icon: PlugZap, tint: '#3B6FD8', photo: P('solar/ev_charger') },
+  { id: 'shop50', title: 'Retail Shopping Voucher', value: 'RM50', detail: 'E-voucher for selected retail partners in our townships.', cost: 1200, cat: 'shopping', icon: ShoppingBag, tint: '#E07A2E', photo: P('rewards/shopping_bag') },
+  { id: 'appliance', title: 'Green Home Appliance Rebate', value: 'RM100', detail: 'Rebate on selected energy-efficient home appliances.', cost: 2000, cat: 'home', icon: Refrigerator, tint: '#2C8FA8', photo: P('rewards/energy_efficient_appliances') },
+  { id: 'park10', title: 'Township Parking Credit', value: 'RM10', detail: 'Parking credit at participating township car parks.', cost: 500, cat: 'mobility', icon: SquareParking, tint: '#6A5BD6', photo: P('solar/solar_car_park') },
+  { id: 'tree', title: 'Tree-Planting Donation', value: '1 tree', detail: 'Plant a native tree in Sime Darby Property townships, tagged in your name.', cost: 1000, cat: 'community', icon: Sprout, tint: '#2F8F6B', photo: P('rewards/tree_planting_hands') },
+  { id: 'garden', title: 'Community Garden Plot', value: '3 months', detail: 'Your own plot at the township community garden.', cost: 1500, cat: 'community', icon: Flower2, tint: '#4E9A3F', photo: P('rewards/seedling_hands') },
 ]
 
 const REWARD_ICONS: Record<string, LucideIcon> = {

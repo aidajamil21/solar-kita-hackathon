@@ -48,7 +48,7 @@ export default function Me() {
 
   return (
     <Page>
-      <Hero photo={asset('photos/elmina_1.jpg')} eyebrow="Sustainable townships. Brighter tomorrows." title="Progress &" accent="impact" sub="Your journey is powering cleaner communities. Here’s your personal impact so far." />
+      <Hero photo={asset('photos/townships/elmina_1.jpg')} eyebrow="Sustainable townships. Brighter tomorrows." title="Progress &" accent="impact" sub="Your journey is powering cleaner communities. Here’s your personal impact so far." />
 
       <Rise className="section overlap">
         <div className="card pad row">

@@ -52,7 +52,7 @@ export default function Plan() {
 
   return (
     <Page>
-      <Hero photo={asset('photos/solar_farm_golden_hour.jpg')} eyebrow="Monthly Solar Builder" title="Build your" accent="solar share"
+      <Hero photo={asset('photos/solar/solar_farm_golden_hour.jpg')} eyebrow="Monthly Solar Builder" title="Build your" accent="solar share"
         sub="Put aside a fixed amount each month to support your township’s solar farm. It comes back to you over 10 years, plus 3% a year, and earns points along the way." />
 
       {loading && <Rise className="section overlap"><div className="card pad muted small" style={{ textAlign: 'center' }}>Loading your plan…</div></Rise>}

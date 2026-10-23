@@ -59,7 +59,7 @@ export default function Login({ onSignedIn, onOffline }: { onSignedIn: () => voi
   return (
     <div className="login">
       <aside className="login-hero">
-        <img src={asset('photos/solar_farm_golden_hour_2.jpg')} alt="" className="login-hero-img" />
+        <img src={asset('photos/solar/solar_farm_golden_hour_2.jpg')} alt="" className="login-hero-img" />
         <div className="login-hero-inner">
           <span className="hero-logo login-logo"><LogoMark size={40} /></span>
           <div className="eyebrow" style={{ color: 'rgba(255,255,255,.85)', marginTop: 22 }}>Community Energy-as-a-Service</div>

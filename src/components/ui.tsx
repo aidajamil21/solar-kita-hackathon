@@ -10,7 +10,7 @@ import { asset } from '../asset'
 
 /* ---------- brand mark (Sime Darby Property) ---------- */
 export function LogoMark({ size = 38 }: { size?: number }) {
-  return <img src={asset('sdp-logo.png')} alt="Sime Darby Property" height={size} style={{ height: size, width: 'auto', display: 'block', flexShrink: 0 }} />
+  return <img src={asset('brand/sdp-logo.png')} alt="Sime Darby Property" height={size} style={{ height: size, width: 'auto', display: 'block', flexShrink: 0 }} />
 }
 
 /* ---------- star coin (points) ---------- */

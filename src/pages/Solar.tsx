@@ -56,7 +56,7 @@ export default function Solar() {
 
   return (
     <Page>
-      <Hero photo={asset('photos/solar_farm_golden_hour_2.jpg')} eyebrow="Portfolio" title="My solar" accent="projects" sub="Your solar subscriptions, estimated value and performance." />
+      <Hero photo={asset('photos/solar/solar_farm_golden_hour_2.jpg')} eyebrow="Portfolio" title="My solar" accent="projects" sub="Your solar subscriptions, estimated value and performance." />
 
       <Rise className="section overlap">
         <div className="card raised pad">

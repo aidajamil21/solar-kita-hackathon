@@ -12,8 +12,8 @@ import { HELP } from '../help'
 
 const BANNERS = [
   { id: 'sdp50', eyebrow: 'Featured reward', title: ['Sime Darby Property', 'Shopping Voucher'], body: 'Redeem 1,000 points for a RM50 voucher. Shop, dine and live greener.', photo: null },
-  { id: 'tree', eyebrow: 'Limited time reward', title: ['Plant a greener', 'tomorrow'], body: 'Redeem 1,000 points to plant a tree in Sime Darby Property townships.', photo: asset('photos/seeding_hands_2.jpg') },
-  { id: 'ev20', eyebrow: 'Clean mobility', title: ['Charge up', 'for less'], body: 'RM20 EV charging credit for 800 points.', photo: asset('photos/ev_charger.jpg') },
+  { id: 'tree', eyebrow: 'Limited time reward', title: ['Plant a greener', 'tomorrow'], body: 'Redeem 1,000 points to plant a tree in Sime Darby Property townships.', photo: asset('photos/rewards/seeding_hands_2.jpg') },
+  { id: 'ev20', eyebrow: 'Clean mobility', title: ['Charge up', 'for less'], body: 'RM20 EV charging credit for 800 points.', photo: asset('photos/solar/ev_charger.jpg') },
 ]
 
 const ACTIVITY_ICON: Record<ActivityType, LucideIcon> = {
@@ -39,7 +39,7 @@ export default function Rewards() {
 
   return (
     <Page>
-      <Hero photo={asset('photos/seedling_hands.jpg')} eyebrow="Sustainable actions. Greater rewards." title="Rewards" accent="marketplace" sub="Redeem your points for rewards that support a cleaner, greener tomorrow.">
+      <Hero photo={asset('photos/rewards/seedling_hands.jpg')} eyebrow="Sustainable actions. Greater rewards." title="Rewards" accent="marketplace" sub="Redeem your points for rewards that support a cleaner, greener tomorrow.">
       </Hero>
 
       {/* ---- points ---- */}

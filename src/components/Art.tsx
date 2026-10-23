@@ -2,8 +2,8 @@ import { useId, useState } from 'react'
 import { KIND_PHOTOS, type RoofKind, type SiteKind, type Township } from '../data'
 import { asset } from '../asset'
 
-/** roof sites: public/photos/condo_solar.jpg or rooftop_solar.jpg when added, else the rooftop-panels shot */
-const ROOF_PHOTO: Record<RoofKind, string> = { condo: 'photos/condo_solar.jpg', roof: 'photos/rooftop_solar.jpg' }
+/** roof sites: public/photos/solar/condo_solar.jpg or rooftop_solar.jpg when added, else the rooftop-panels shot */
+const ROOF_PHOTO: Record<RoofKind, string> = { condo: 'photos/solar/condo_solar.jpg', roof: 'photos/solar/rooftop_solar.jpg' }
 
 /** Real project photography per initiative type (`on`: the farm site sits on roofs). `hero` picks the wide shot. */
 export function ProjectArt({ kind, on, hero = false, style, className }: { kind: SiteKind; on?: RoofKind; hero?: boolean; style?: React.CSSProperties; className?: string }) {
@@ -15,13 +15,13 @@ export function ProjectArt({ kind, on, hero = false, style, className }: { kind:
 }
 
 /**
- * Where to look for a township's photo: its set photo, else a file in /public/photos named after the township id
+ * Where to look for a township's photo: its set photo, else a file in /public/photos/townships named after the township id
  * (`subang-jaya.jpg` or `subang_jaya.jpg`, also .png/.webp), else a snapshot of its 3D map.
  */
 const townSources = (t: Township) => {
   const names = [...new Set([t.id, t.id.replace(/-/g, '_')])]
-  const files = names.flatMap((n) => ['jpg', 'png', 'webp'].map((ext) => asset(`photos/${n}.${ext}`)))
-  return [...(t.photo ? [t.photo] : files), asset(`previews/${t.id}.jpg`)]
+  const files = names.flatMap((n) => ['jpg', 'png', 'webp'].map((ext) => asset(`photos/townships/${n}.${ext}`)))
+  return [...(t.photo ? [t.photo] : files), asset(`photos/map-previews/${t.id}.jpg`)]
 }
 
 /** Township photo, or a snapshot of its 3D map when we don't have one */
@@ -51,7 +51,7 @@ export function VoucherArt({ amount = 50 }: { amount?: number }) {
       </svg>
       <div style={{ position: 'relative', width: '62%', aspectRatio: '1.6', background: '#fff', borderRadius: 12, transform: 'rotate(-7deg) translateY(-6%)', boxShadow: '0 18px 30px -14px rgba(0,0,0,.45)', padding: '9% 9% 7%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div className="row between" style={{ gap: 6 }}>
-          <img src={asset('sdp-logo.png')} alt="" style={{ height: '34%', minHeight: 18, maxHeight: 30, width: 'auto' }} />
+          <img src={asset('brand/sdp-logo.png')} alt="" style={{ height: '34%', minHeight: 18, maxHeight: 30, width: 'auto' }} />
           <div style={{ fontSize: 'clamp(6px, 2.2vw, 9px)', fontWeight: 800, letterSpacing: '.06em', lineHeight: 1.15, textAlign: 'right', color: '#15181d' }}>SHOPPING<br />VOUCHER</div>
         </div>
         <div style={{ textAlign: 'right', fontWeight: 800, color: '#15181d', lineHeight: 1 }}>

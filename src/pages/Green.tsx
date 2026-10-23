@@ -112,7 +112,7 @@ export default function Green() {
 
   return (
     <Page>
-      <Hero photo={asset('photos/elmina_2.jpg')} eyebrow="Walk & cycle. Skip the car." title="Go" accent="green"
+      <Hero photo={asset('photos/townships/elmina_2.jpg')} eyebrow="Walk & cycle. Skip the car." title="Go" accent="green"
         sub={`Earn points for every kilometre you walk or cycle around ${town.name}. Less petrol, cleaner air.`} />
 
       {/* ---- today ---- */}
