@@ -11,6 +11,8 @@ A connected community solar ecosystem for Sime Darby Property townships.
 
 The live demo is hosted on Vercel and works on both **web and mobile** browsers.
 
+> **Slow or laggy 3D map?** If your laptop or phone struggles with 3D, switch to the lighter **2D map**: use the toggle at the top of the **Explore** tab, or turn off **3D township map** in your **Profile** (`Me` tab).
+
 Built by **MAXCORN** (Maxis Business Enterprise interns)
 
 </div>
