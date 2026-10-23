@@ -5,7 +5,7 @@ import { ProjectArt } from '../components/Art'
 import { AreaChart } from '../components/Charts'
 import { Coin, Page, Progress, Rise, Seg, Sheet, useFromAlert } from '../components/ui'
 import { openAlerts } from '../components/AlertsButton'
-import { MONTHS, rm, roofOf, siteById, siteMeta, townshipById, unitGridCols, unitLabel } from '../data'
+import { MONTHS, purchasePoints, rm, roofOf, siteById, siteMeta, townshipById, unitGridCols, unitLabel } from '../data'
 import { capitalReturned, creditAhead, interestReceived, investedOf, nextPayoutDate, payoutHistory, useStore } from '../store'
 
 type Range = '6M' | '1Y' | '3Y' | 'All'
@@ -89,7 +89,7 @@ export default function SolarDetail() {
       <Rise className="section grid-2" style={{ marginTop: 12 }}>
         <Stat icon={Coins} v={rm(invested)} l="Your entry amount" />
         <Stat icon={BarChart3} v={`${site.returnLow}–${site.returnHigh}%`} l="Expected return p.a." />
-        <Stat icon={Star} v={`+${sub.units.length * site.pointsPerUnit}`} l="Points earned" />
+        <Stat icon={Star} v={`+${purchasePoints(site, sub.units.length)}`} l="Points earned" />
         <Stat icon={Leaf} v={`${(sub.units.length * site.co2PerUnit).toFixed(1)} t`} l="CO₂e saved / year" />
       </Rise>
 
@@ -109,7 +109,7 @@ export default function SolarDetail() {
             </div>
             <div style={{ borderLeft: '1px solid var(--line)', paddingLeft: 14 }}>
               <div className="muted small" style={{ fontWeight: 600 }}>Total rewards earned</div>
-              <div className="row" style={{ gap: 6 }}><Coin size={20} /><span className="num" style={{ fontSize: 22, fontWeight: 800 }}>{sub.units.length * site.pointsPerUnit}</span></div>
+              <div className="row" style={{ gap: 6 }}><Coin size={20} /><span className="num" style={{ fontSize: 22, fontWeight: 800 }}>{purchasePoints(site, sub.units.length)}</span></div>
               <div className="muted small">points</div>
             </div>
           </div>

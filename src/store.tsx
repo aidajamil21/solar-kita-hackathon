@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ApiError, backendApi, type RemoteMe } from './api/backend'
-import { hydrateCatalogue, REWARDS, SUNSHINE, siteById, townshipById, type Site } from './data'
+import { hydrateCatalogue, MONTHS, monthlyKwh, POINTS, purchasePoints, REWARDS, SUNSHINE, siteById, townshipById, type Site } from './data'
 import { checkTrip, GREEN, greenPointsToday, type GpsPoint, type Trip, type TripMode } from './green'
 
 export type MapMode = '3d' | '2d'
@@ -43,6 +43,8 @@ interface State {
   mapMode: MapMode
   /** Go Green walks and rides, newest first */
   trips: Trip[]
+  /** local demo: last month (absolute index) whose generation points were added */
+  genThrough?: number
 }
 
 export interface TripResult { trip: Trip; capped: boolean }
@@ -88,9 +90,9 @@ const today = () => new Date().toLocaleDateString('en-CA')
 function load(): State {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return { ...SEED, ...JSON.parse(raw) }
+    if (raw) return withGeneration({ ...SEED, ...JSON.parse(raw) })
   } catch { /* storage unavailable */ }
-  return SEED
+  return withGeneration(SEED)
 }
 
 /* ---------- credit maths ----------
@@ -169,6 +171,33 @@ export function combinedPayouts(subs: Sub[], n: number) {
   })
 }
 
+/** the latest month whose credits have been paid: this month once the 28th has passed */
+const lastPaidMonth = () => thisMonth() - (new Date().getDate() >= 28 ? 0 : 1)
+
+/**
+ * Local demo only (the server keeps its own): add generation points, 1 per 10 kWh the holdings made, for each month
+ * that has closed since we last looked. A holding generates from the month after it was bought, like its credits.
+ */
+function withGeneration(s: State): State {
+  const from = Math.max((s.genThrough ?? -1) + 1, monthIndex(POINTS.generationFrom))
+  const to = lastPaidMonth()
+  if (from > to) return s
+  let points = 0
+  const earned: Activity[] = []
+  for (let m = from; m <= to; m++) {
+    let kwh = 0
+    for (const sub of s.subs) {
+      const site = siteById(sub.siteId)
+      if (site && m > monthIndex(sub.since)) kwh += monthlyKwh(site, sub.units.length, m % 12)
+    }
+    const pts = Math.floor(kwh / POINTS.kwhPerPoint)
+    if (!pts) continue
+    points += pts
+    earned.push({ id: `gen-${m}`, title: `Solar generation · ${MONTHS[m % 12]} ${Math.floor(m / 12)} (${Math.round(kwh)} kWh)`, points: pts, at: new Date(Math.floor(m / 12), m % 12, 28).getTime(), type: 'bonus' })
+  }
+  return { ...s, genThrough: to, points: s.points + points, lifetime: s.lifetime + points, activity: [...earned, ...s.activity].sort((a, b) => b.at - a.at) }
+}
+
 export function nextPayoutDate() {
   const d = new Date()
   const p = new Date(d.getFullYear(), d.getMonth(), 28)
@@ -233,7 +262,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const subscribe = useCallback((siteId: string, units: number[]) => {
     const site = siteById(siteId)!
-    const pts = units.length * site.pointsPerUnit
+    const pts = purchasePoints(site, units.length)
     setState((s) => {
       const existing = s.subs.find((x) => x.siteId === siteId)
       const d = new Date()
@@ -297,7 +326,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [online, apply, failed])
 
   const reset = useCallback(async () => {
-    if (!online) { setState((s) => ({ ...SEED, mapMode: s.mapMode })); return }
+    if (!online) { setState((s) => withGeneration({ ...SEED, mapMode: s.mapMode })); return }
     try { apply(await backendApi.resetDemo()); refreshCatalogue() } catch (err) { failed(err); throw err }
   }, [online, apply, failed, refreshCatalogue])
 

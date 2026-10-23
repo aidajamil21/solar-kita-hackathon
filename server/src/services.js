@@ -1,7 +1,7 @@
 import { all, run, supabase } from './db.js'
 import { returnedSoFar } from './credits.js'
 import { planHoldings } from './plan.js'
-import { clamp, HttpError, MONTHS, nowMeta, toMonthLabel } from './utils.js'
+import { clamp, HttpError, MONTHS, nowMeta, POINTS, toMonthLabel } from './utils.js'
 
 // Queries go through the Supabase REST API, which can't run raw SQL joins or sums,
 // so each service fetches the rows it needs and does the joining/aggregation here.
@@ -58,7 +58,7 @@ export async function catalogue(userId) {
       pricePerUnit: Number(s.price_per_unit),
       returnLow: Number(s.return_low_pct ?? 0),
       returnHigh: Number(s.return_high_pct ?? 0),
-      pointsPerUnit: s.points_per_unit,
+      pointsPerUnit: Math.floor(Number(s.price_per_unit) / POINTS.rmPerPoint),
       co2PerUnit: Number(s.co2_kg_per_unit_year) / 1000,
       kwpPerUnit: Number(s.kwp_per_unit),
       units: s.total_units,

@@ -2,6 +2,7 @@
  * Plain-language explanations for the "i" buttons, in one place so the wording stays consistent.
  * Keep the numbers in line with src/data.ts, src/green.ts and src/plan.ts.
  */
+import { POINTS } from './data'
 import { GREEN } from './green'
 import { PLAN, totalBack } from './plan'
 import { EV, fmtHour } from './ev'
@@ -15,7 +16,7 @@ export const HELP = {
   moneyBack:
     'Every month from the month after you buy, 1/120 of what you paid comes back to you, so the full amount is returned over 10 years. The return is added on top.',
   rewardPoints: (unit: string) =>
-    `Community Energy Points you earn once for every ${unit} you join. Spend them in Rewards on vouchers, EV charging credit and more.`,
+    `Community Energy Points: 1 for every RM ${POINTS.rmPerPoint} you put in when you join (up to ${POINTS.purchaseCap.toLocaleString()} per purchase), then 1 for every ${POINTS.kwhPerPoint} kWh your ${unit}s make each month. Spend them in Rewards on vouchers, EV charging credit and more.`,
   carbon:
     'Estimated CO₂ your share avoids each year, compared with taking the same electricity from the grid (0.585 kg CO₂e per kWh).',
   kwp:

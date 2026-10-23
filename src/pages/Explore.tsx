@@ -8,7 +8,7 @@ import type { MapApi } from '../components/map/TownshipMap'
 import { AlertBack, Coin, Progress, Sheet, SuccessMark, useFromAlert } from '../components/ui'
 import { InvestGuide } from '../components/InvestGuide'
 import { ProjectFacts } from '../components/ProjectFacts'
-import { KINDS, rm, roofOf, siteMeta, SITES, siteById, STATES, TOWNSHIPS, townshipById, unitGridCols, unitLabel, type Site, type SiteKind } from '../data'
+import { KINDS, purchasePoints, rm, roofOf, siteMeta, SITES, siteById, STATES, TOWNSHIPS, townshipById, unitGridCols, unitLabel, type Site, type SiteKind } from '../data'
 import { useStore } from '../store'
 import { Info } from '../components/Info'
 import { HELP } from '../help'
@@ -416,7 +416,7 @@ function SiteSheet(props: {
             <motion.div key="sum" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="row between" style={{ marginBottom: 10, fontSize: 12.5 }}>
               <span><b>{n}</b> × {rm(site.pricePerUnit)}</span>
               <span className="muted">Est. return <b style={{ color: 'var(--ink)' }}>{site.returnLow}–{site.returnHigh}%</b> p.a.</span>
-              <span className="row" style={{ gap: 4 }}><Coin size={14} /><b>+{n * site.pointsPerUnit}</b></span>
+              <span className="row" style={{ gap: 4 }}><Coin size={14} /><b>+{purchasePoints(site, n)}</b></span>
             </motion.div>
           ) : (
             <motion.div key="hint" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="muted small" style={{ marginBottom: 10, textAlign: 'center' }}>
@@ -545,7 +545,7 @@ function ConfirmSheet({ open, site, units, onClose, onDone }: { open: boolean; s
               {[
                 ['Subscription amount', rm(total)],
                 ['Expected return', `${site.returnLow}–${site.returnHigh}% p.a.`],
-                ['Reward points', `+${units.length * site.pointsPerUnit}`],
+                ['Reward points', `+${purchasePoints(site, units.length)}`],
                 ['Carbon savings', `~${(units.length * site.co2PerUnit).toFixed(1)} tCO₂e / yr`],
               ].map(([k, v]) => (
                 <div key={k} className="row between" style={{ fontSize: 13, padding: '6px 0' }}>

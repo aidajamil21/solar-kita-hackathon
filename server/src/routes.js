@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { checkIn, markAllAlertsRead, redeem, resetDemo, subscribe, updateMe } from './actions.js'
 import { GREEN, logTrip } from './green.js'
 import { planSummary, skipMonth, startPlan, stopPlan, syncPlan, updatePlan } from './plan.js'
-import { syncBlockCredits } from './credits.js'
+import { syncBlockCredits, syncGenerationPoints } from './credits.js'
 import { availability, book, bookingsOf, cancel as cancelBooking, EV, finish as finishCharging, pay as payCharging, start as startCharging } from './ev.js'
 import { config } from './config.js'
 import { analyst } from './llm.js'
@@ -29,6 +29,7 @@ router.get('/catalogue', h(async (req, res) => res.json(await catalogue(req.user
 router.get('/me', h(async (req, res) => {
   await syncPlan(req.userId).catch((err) => console.error('plan sync failed', err))
   await syncBlockCredits(req.userId).catch((err) => console.error('credit sync failed', err))
+  await syncGenerationPoints(req.userId).catch((err) => console.error('generation points sync failed', err))
   res.json(await me(req.userId))
 }))
 router.patch('/me', h(async (req, res) => res.json(await updateMe(req.userId, req.body))))

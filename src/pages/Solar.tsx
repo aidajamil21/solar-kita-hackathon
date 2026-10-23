@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ProjectArt } from '../components/Art'
 import { AreaChart } from '../components/Charts'
 import { Count, Hero, Page, Progress, Rise } from '../components/ui'
-import { MONTHS, rm, roofOf, siteById, siteMeta, townshipById } from '../data'
+import { MONTHS, purchasePoints, rm, roofOf, siteById, siteMeta, townshipById } from '../data'
 import { combinedPayouts, interestReceived, investedOf, nextPayoutDate, useStore } from '../store'
 import { asset } from '../asset'
 import { Info } from '../components/Info'
@@ -43,7 +43,7 @@ export default function Solar() {
   const earned = store.subs.reduce((a, s) => a + interestReceived(s), 0)
   const payouts = combinedPayouts(store.subs, 12)
   const payout = nextPayoutDate()
-  const points = store.subs.reduce((a, s) => a + s.units.length * (siteById(s.siteId)?.pointsPerUnit ?? 0), 0)
+  const points = store.subs.reduce((a, s) => { const site = siteById(s.siteId); return a + (site ? purchasePoints(site, s.units.length) : 0) }, 0)
   const co2 = store.subs.reduce((a, s) => a + s.units.length * (siteById(s.siteId)?.co2PerUnit ?? 0), 0)
   // estimated value over the last 12 months: entry amount so far + extra earned so far
   const before = earned - payouts.reduce((a, p) => a + p.interest, 0)

@@ -227,6 +227,7 @@ When analysing performance, distinguish: contributions made; payouts actually re
 How Solar Kita works (general facts, not the resident's data):
 - Residents buy blocks of a solar farm, grid array, rooftop or EV charging station. Money comes back as monthly Energy Savings Credits on their TNB bill (on the 28th, from the month after paying): 1/120 of it each month for 10 years, plus the project's return (max 3% a year) on the part not yet returned.
 - Solar Builder Plan: fixed monthly payment (RM 50-10,000); each payment comes back the same way plus 3% a year. 1 point per RM 5, +50 at a 6-month streak, +100 every 12.
+- Solar holdings earn 1 point per RM 5 put in (max 1,000 per purchase), then 1 point per 10 kWh their panels make each month.
 - Points also from Go Green (1 per 3 km walked / 5 km cycled in the township, max 20 a day), EV charging (RM 1.20/kWh paid after charging; 2 points/kWh 11am-3pm, 0.5 otherwise) and daily check-in (+10).
 
 How to answer:

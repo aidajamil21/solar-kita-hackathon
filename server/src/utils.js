@@ -15,6 +15,16 @@ export const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'Jun
 /** monthly sunshine factor (0 = Jan); must match src/data.ts and seed.sql */
 export const SUNSHINE = [0.92, 1.02, 1.08, 1.06, 1.0, 0.97, 1.01, 0.99, 0.95, 0.9, 0.86, 0.88]
 
+/**
+ * Points for solar holdings: 1 per RM 5 put in, at most 1,000 per purchase, plus monthly points as the panels
+ * generate (1 per 10 kWh, from October 2026). Same rules as POINTS in src/data.ts.
+ */
+export const POINTS = { rmPerPoint: 5, purchaseCap: 1000, kwhPerPoint: 10, kwhPerKwpMonth: 108, generationFrom: '2026-10-01' }
+/** points for one purchase of `amount` RM */
+export const purchasePoints = (amount) => Math.min(POINTS.purchaseCap, Math.floor(Number(amount) / POINTS.rmPerPoint))
+/** estimated kWh that `kwp` of panels make in `month` (a Date) */
+export const monthlyKwh = (kwp, month) => Number(kwp) * POINTS.kwhPerKwpMonth * SUNSHINE[new Date(month).getUTCMonth()]
+
 export function toMonthLabel(dateLike) {
   return MONTHS[new Date(dateLike).getUTCMonth()]
 }

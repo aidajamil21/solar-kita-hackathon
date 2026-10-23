@@ -4,7 +4,7 @@ import { ensureProfile, me } from './services.js'
 import { syncBlockCredits } from './credits.js'
 import { MOCK_USERS } from './mockdata.js'
 import { syncPlan } from './plan.js'
-import { dueDate, HttpError, monthStart, MONTHS_LONG, rm, todayKL } from './utils.js'
+import { dueDate, HttpError, monthStart, MONTHS_LONG, purchasePoints, rm, todayKL } from './utils.js'
 
 async function siteOrThrow(siteId) {
   const site = (await run(supabase.from('sites').select('*').eq('id', siteId).limit(1)))[0]
@@ -55,7 +55,7 @@ export async function subscribe(userId, siteId, rawUnits) {
     external_reference: `SK-CON-${sub.id}-${Date.now()}`, contributed_at: now, settled_at: now,
   }))
 
-  const points = units.length * site.points_per_unit
+  const points = purchasePoints(amount)
   await rpc('apply_points', {
     p_user_id: userId, p_delta: points, p_activity: 'subscribe', p_title: `Subscribed to ${site.name}`,
     p_idempotency_key: `subscribe:${sub.id}:${units.join('-')}`, p_metadata: { site_id: siteId, units },

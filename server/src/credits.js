@@ -1,5 +1,5 @@
-import { run, supabase } from './db.js'
-import { blockCredit, dueDate, MONTHS_BACK } from './utils.js'
+import { rpc, run, supabase } from './db.js'
+import { blockCredit, dueDate, MONTHS, monthlyKwh, MONTHS_BACK, POINTS } from './utils.js'
 
 /**
  * Energy Savings Credits for block purchases (one-off blocks, rooftop sections, charger bays).
@@ -46,6 +46,51 @@ export async function syncBlockCredits(userId) {
   const keep = new Set(existing.filter((e) => !stale.includes(e)).map((e) => e.external_reference))
   const toInsert = [...desired.values()].filter((d) => !keep.has(d.external_reference))
   for (let i = 0; i < toInsert.length; i += 500) await run(supabase.from('payouts').insert(toInsert.slice(i, i + 500)))
+}
+
+/**
+ * Generation points for block purchases: 1 per 10 kWh the resident's panels made, one ledger entry per month, added
+ * once that month's credits are paid (the 28th). Each purchase generates from the month after it was paid, like its
+ * credits, and only months from POINTS.generationFrom count, so nobody gets a lump of back-dated points.
+ * Idempotent: the ledger key is per resident and month, so it is safe to run on every read.
+ */
+export async function syncGenerationPoints(userId) {
+  const [contributions, sites, done] = await Promise.all([
+    run(supabase.from('contributions').select('site_id, amount, contributed_at, plan_payment_id, subscription_id').eq('user_id', userId).eq('status', 'completed')),
+    run(supabase.from('sites').select('id, price_per_unit, kwp_per_unit')),
+    run(supabase.from('point_ledger').select('idempotency_key').eq('user_id', userId).like('idempotency_key', 'gen:%')),
+  ])
+  const site = new Map(sites.map((s) => [s.id, s]))
+  const have = new Set(done.map((d) => d.idempotency_key))
+  const blocks = contributions.filter((c) => c.subscription_id && !c.plan_payment_id && Number(site.get(c.site_id)?.price_per_unit) > 0)
+  if (!blocks.length) return
+
+  const now = new Date()
+  const start = new Date(POINTS.generationFrom)
+  for (let t = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1); ;) {
+    const month = new Date(t)
+    if (dueDate(month).getTime() > now.getTime()) break
+    const key = `gen:${userId}:${month.toISOString().slice(0, 7)}`
+    if (!have.has(key)) {
+      let kwh = 0
+      for (const c of blocks) {
+        const paid = new Date(c.contributed_at)
+        if (Date.UTC(paid.getUTCFullYear(), paid.getUTCMonth(), 1) >= t) continue // generates from the month after paying
+        const s = site.get(c.site_id)
+        const units = Math.round(Number(c.amount) / Number(s.price_per_unit))
+        kwh += monthlyKwh(units * Number(s.kwp_per_unit), month)
+      }
+      const points = Math.floor(kwh / POINTS.kwhPerPoint)
+      if (points > 0) {
+        await rpc('apply_points', {
+          p_user_id: userId, p_delta: points, p_activity: 'bonus',
+          p_title: `Solar generation · ${MONTHS[month.getUTCMonth()]} ${month.getUTCFullYear()} (${Math.round(kwh)} kWh)`,
+          p_idempotency_key: key, p_metadata: { kwh: Math.round(kwh) },
+        })
+      }
+    }
+    t = Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)
+  }
 }
 
 /** how much of a purchase has come back and the "money-years" it was outstanding, as of now */

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { BarChart3, ChevronRight, Coins, Leaf, Star } from 'lucide-react'
 import { createElement } from 'react'
-import { KINDS, rm, roofOf, siteMeta, type Site, type SiteKind } from '../data'
+import { KINDS, POINTS, rm, roofOf, siteMeta, type Site, type SiteKind } from '../data'
 import { ProjectArt } from './Art'
 import { Coin } from './ui'
 import { Info } from './Info'
@@ -20,7 +20,7 @@ export function ProjectFacts({ site, layout = 'list' }: { site: Site; layout?: '
   const rows = [
     { icon: Coins, label: 'Entry cost', value: `From ${rm(site.pricePerUnit)}`, note: ENTRY_NOTE[site.kind], help: HELP.entryCost(unit) },
     { icon: BarChart3, label: 'Expected return', value: `${site.returnLow} – ${site.returnHigh}% p.a.`, note: 'Plus your money back over 10 years', help: HELP.expectedReturn },
-    { icon: Star, label: 'Reward points', value: `+ ${site.pointsPerUnit} points`, note: `Per ${unit}`, help: HELP.rewardPoints(unit) },
+    { icon: Star, label: 'Reward points', value: `+ ${site.pointsPerUnit} points`, note: `Per ${unit}, up to ${POINTS.purchaseCap.toLocaleString()} a purchase`, help: HELP.rewardPoints(unit) },
     { icon: Leaf, label: 'Carbon savings', value: `~ ${site.co2PerUnit} tCO₂e / year`, note: `Per ${unit}`, help: HELP.carbon },
   ]
   if (layout === 'grid') {
